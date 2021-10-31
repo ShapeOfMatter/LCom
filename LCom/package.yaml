@@ -19,8 +19,40 @@ extra-source-files:
 # common to point users to the README.md file.
 description:         Please see the README on GitHub at <https://github.com/ShapeOfMatter/LCom#readme>
 
+ghc-options: 
+    - "-fplugin=Polysemy.Plugin"
+    - "-Wall"
+    - "-O2"
+
+default-extensions:
+    - DataKinds
+    - FlexibleContexts
+    - GADTs
+    - GeneralizedNewtypeDeriving
+    - LambdaCase
+    - PolyKinds
+    - RankNTypes
+    - ScopedTypeVariables
+    - TemplateHaskell
+    - TypeApplications
+    - TypeOperators
+    - TypeFamilies
+
 dependencies:
 - base >= 4.7 && < 5
+  #- cereal >= 0.5.8
+  #- cryptonite >= 0.29
+- distributive >= 0.5.3 && < 0.7
+- fin >= 0.2
+  #- mtl >= 2.2.2
+- polysemy >= 1.4  
+  #- polysemy-zoo >= 0.7
+- polysemy-plugin >= 0.3
+  #- QuickCheck >= 2.14
+  #- random >= 1.2
+  #- statistics >= 0.15
+  #- Stream >= 0.4.7
+- vec >= 0.4
 
 library:
   source-dirs: src
