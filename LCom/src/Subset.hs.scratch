@@ -1,0 +1,30 @@
+{-# LANGUAGE IncoherentInstances #-}
+module Subset (
+  known,
+  Subset,
+  transitive
+) where
+
+import qualified Data.Type.Set as Set
+import Data.Constraint (Class, cls, Dict(..), (:-)(..), (:=>), ins, withDict)
+
+asdf :: Dict (Set.Subset s t) -> Dict (Set.Subset t v) -> Dict (Set.Subset s v)
+asdf = undefined
+
+--instance Class (Set.Subset s t, Set.Subset t v) (Set.Subset s v) where 
+--cls = Sub Dict
+
+-- instance forall s t x. (Set.Subset s t) :=> (Set.Subset s (x ': t), Set.Subset (x ': s) (x ': t)) where ins = Sub Dict
+
+aaa :: (Set.Subset s t) => Dict (Set.Subset s (x ': t))
+aaa = Dict
+bbb :: (Set.Subset s t) => Dict (Set.Subset (x ': s) (x ': t))
+bbb = Dict
+
+dd :: Dict (Set.Subset s t) -> Dict (Set.Subset s (x ': t) , Set.Subset (x ': s) (x ': t))
+--dd a = withDict a (aaa, bbb)
+dd a = undefined
+
+known = undefined
+data Subset where{}
+transitive = undefined

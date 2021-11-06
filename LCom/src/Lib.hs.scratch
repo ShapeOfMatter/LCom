@@ -1,0 +1,185 @@
+module Lib () where
+
+import Data.Constraint (Dict(..), withDict)
+import Data.Type.Nat (Nat)
+import Data.Type.Set (IsSet, Subset)
+import Polysemy (Sem, makeSem, reinterpret)
+
+class Middleman s t v where
+  proof :: (Subset s t, Subset t v) => Dict (Subset s v)
+
+instance Middleman '[] '[] '[] where
+  proof = Dict
+
+instance forall k (v :: k) (vs :: [k]).
+         (Middleman ('[] :: [k]) ('[] :: [k]) vs) =>
+         Middleman ('[] :: [k]) ('[] :: [k]) (v ': vs) where -- unnesssary?
+  proof = Dict
+
+instance forall k (y :: k) (ts :: [k]).
+         (Middleman ('[] :: [k]) ts ('[] :: [k])) =>
+         Middleman ('[] :: [k]) (y ': ts) ('[] :: [k]) where  -- vacuous
+  proof = Dict
+
+instance forall k (y :: k) (ts :: [k]) (vs :: [k]).
+         (Subset ts vs,
+          Middleman ('[] :: [k]) ts vs) =>
+         Middleman ('[] :: [k]) ts (y ': vs) where -- unnesssary?
+  proof = withDict (proof @('[] :: [k]) @ts @vs) Dict
+
+instance forall k (y :: k) (ss :: [k]) (ts :: [k]) (vs :: [k]).
+         (Subset ss ts,
+          Subset ts vs,
+          Middleman ss ts vs) =>
+         Middleman ss ts (y ': vs) where
+  proof = withDict (proof @ss @ts @vs) Dict
+
+instance forall k (y :: k) (ss :: [k]) (ts :: [k]) (vs :: [k]).
+         (Subset ss ts,
+          Subset ts vs,
+          Middleman ss ts vs) =>
+         Middleman ss (y ': ts) vs where
+  proof = withDict (proof @ss @ts @vs) Dict
+
+instance forall k (y :: k) (ss :: [k]) (ts :: [k]) (vs :: [k]).
+         (Subset ss ts,
+          Subset ts vs,
+          Middleman ss ts vs) =>
+         Middleman (y ': ss) (y ': ts) (y ': vs) where
+  proof = withDict (proof @ss @ts @vs) Dict
+
+{-transitivity :: forall k (ss :: [k]) (ts :: [k]) (vs :: [k]).
+                (Subset ss ts,
+                 Subset ts vs) =>
+                Dict (Subset ss vs)
+transitivity = withDict (proof @ss @ts @vs) Dict-}
+
+transitivity :: forall k (ss :: [k]) (ts :: [k]) (vs :: [k]).
+                (Subset ss ts,
+                 Subset ts vs) =>
+                Dict (Subset ss vs)
+transitivity = withDict (proof @ss @ts @vs) Dict
+
+
+data Located (parties :: [Nat]) v = Located v
+
+data Com (parties :: [Nat]) m a where
+  SendInt :: forall recipients senders parties m.
+             (Subset recipients parties,
+              Subset senders parties) =>
+             Located senders Int -> Com parties m (Located recipients Int)
+  FromUniversal :: forall parties m a.
+               Located parties a -> Com parties m a
+
+-- Polysemy uses template haskell:
+makeSem ''Com
+--sendInt :: Member (Com parties) r => (Located senders Int) -> Sem r (Located recipients Int)
+--fromUniversal :: Member (Com parties) r => (Located parties a) -> Sem r a
+--we can manually write out the functions instead of useing makeSem;
+--that might help make Located's type artument explicit, but I don't think it matters here.
+
+-- "lift" a program in a small community (clique) into a larger community's monad. 
+runClique :: forall parties clq s r a.
+          (IsSet parties,
+           IsSet clq,
+           Subset clq parties) =>
+          Sem (Com clq ': r) a -> Sem (Com parties ': r) (Located clq a)
+runClique program = do
+    a <- (reinterpret _clique) program
+    return (Located a)
+  where _clique :: forall rInitial x.
+                   Com clq (Sem rInitial) x -> Sem (Com parties ': r) x
+        _clique (SendInt l) = sendInt l
+
+
+{-
+ 1 ('[] :: [k])  ('[] :: [k])  ('[] :: [k])  a priori
+ 2 ('[] :: [k])  ('[] :: [k])     (v ': vs)  given 1,2
+ 3--- ('[] :: [k])             t             v
+ 4 ('[] :: [k])             t     (v ': vs)  given 2,4
+ 5 ('[] :: [k])     (t ': ts)             v  given 2,5
+ 6--- ('[] :: [k])     (t ': ts)     (v ': vs)
+ 7 ('[] :: [k])     (y ': ts)     (y ': vs)  given 4,5
+12---            s             t             v
+13            s             t     (v ': vs)
+14            s     (t ': ts)             v
+15            s     (t ': ts)     (v ': vs)
+16            s     (y ': ts)     (y ': vs)    clearly possible
+17    (s ': ss)             t             v  given 1,4,5
+18    (s ': ss)             t     (v ': vs)
+19    (s ': ss)     (t ': ts)             v
+20    (s ': ss)     (t ': ts)     (v ': vs)
+21    (s ': ss)     (y ': ts)     (y ': vs)
+22    (y ': ss)             t     (y ': vs)
+23    (y ': ss)     (t ': ts)     (y ': vs)
+24    (y ': ss)     (y ': ts)             v
+25    (y ': ss)     (y ': ts)     (v ': vs)
+26    (y ': ss)     (y ': ts)     (y ': vs)    clearly possible
+
+
+ ('[] :: [k])  ('[] :: [k])  ('[] :: [k])
+--- ('[] :: [k])  ('[] :: [k])             v
+ ('[] :: [k])  ('[] :: [k])     (v ': vs)
+--- ('[] :: [k])  ('[] :: [k])     (y ': vs)
+--- ('[] :: [k])             t  ('[] :: [k])
+ ('[] :: [k])             t             v
+ ('[] :: [k])             t     (v ': vs)
+--- ('[] :: [k])             t     (y ': vs)
+ ('[] :: [k])     (t ': ts)  ('[] :: [k])
+ ('[] :: [k])     (t ': ts)             v
+ ('[] :: [k])     (t ': ts)     (v ': vs)
+--- ('[] :: [k])     (t ': ts)     (y ': vs)
+--- ('[] :: [k])     (y ': ts)  ('[] :: [k])
+--- ('[] :: [k])     (y ': ts)             v
+--- ('[] :: [k])     (y ': ts)     (v ': vs)
+ ('[] :: [k])     (y ': ts)     (y ': vs)
+            s  ('[] :: [k])  ('[] :: [k])
+            s  ('[] :: [k])             v
+            s  ('[] :: [k])     (v ': vs)
+---            s  ('[] :: [k])     (y ': vs)
+            s             t  ('[] :: [k])
+            s             t             v
+            s             t     (v ': vs)
+---            s             t     (y ': vs)
+---            s     (t ': ts)  ('[] :: [k])
+            s     (t ': ts)             v
+            s     (t ': ts)     (v ': vs)
+---            s     (t ': ts)     (y ': vs)
+---            s     (y ': ts)  ('[] :: [k])
+---            s     (y ': ts)             v
+---            s     (y ': ts)     (v ': vs)
+            s     (y ': ts)     (y ': vs)
+---    (s ': ss)  ('[] :: [k])  ('[] :: [k])
+---    (s ': ss)  ('[] :: [k])             v
+---    (s ': ss)  ('[] :: [k])     (v ': vs)
+---    (s ': ss)  ('[] :: [k])     (y ': vs)
+---    (s ': ss)             t  ('[] :: [k])
+    (s ': ss)             t             v
+    (s ': ss)             t     (v ': vs)
+---    (s ': ss)             t     (y ': vs)
+---    (s ': ss)     (t ': ts)  ('[] :: [k])
+    (s ': ss)     (t ': ts)             v
+    (s ': ss)     (t ': ts)     (v ': vs)
+---    (s ': ss)     (t ': ts)     (y ': vs)
+---    (s ': ss)     (y ': ts)  ('[] :: [k])
+---    (s ': ss)     (y ': ts)             v
+---    (s ': ss)     (y ': ts)     (v ': vs)
+    (s ': ss)     (y ': ts)     (y ': vs)
+---    (y ': ss)  ('[] :: [k])  ('[] :: [k])
+---    (y ': ss)  ('[] :: [k])             v
+---    (y ': ss)  ('[] :: [k])     (v ': vs)
+---    (y ': ss)  ('[] :: [k])     (y ': vs)
+---    (y ': ss)             t  ('[] :: [k])
+---    (y ': ss)             t             v
+---    (y ': ss)             t     (v ': vs)
+    (y ': ss)             t     (y ': vs)
+---    (y ': ss)     (t ': ts)  ('[] :: [k])
+---    (y ': ss)     (t ': ts)             v
+---    (y ': ss)     (t ': ts)     (v ': vs)
+    (y ': ss)     (t ': ts)     (y ': vs)
+---    (y ': ss)     (y ': ts)  ('[] :: [k])
+    (y ': ss)     (y ': ts)             v
+    (y ': ss)     (y ': ts)     (v ': vs)
+    (y ': ss)     (y ': ts)     (y ': vs)
+
+-}

@@ -7,7 +7,6 @@ maintainer:          "Mako.Bates@uvm.edu"
 copyright:           "2021 Mako Bates"
 
 extra-source-files:
-- README.md
 - ChangeLog.md
 
 # Metadata used when publishing your package
@@ -25,11 +24,14 @@ ghc-options:
     - "-O2"
 
 default-extensions:
+    - AllowAmbiguousTypes
     - DataKinds
     - FlexibleContexts
+    - FlexibleInstances
     - GADTs
     - GeneralizedNewtypeDeriving
     - LambdaCase
+    - MultiParamTypeClasses
     - PolyKinds
     - RankNTypes
     - ScopedTypeVariables
@@ -37,13 +39,16 @@ default-extensions:
     - TypeApplications
     - TypeOperators
     - TypeFamilies
+    - UndecidableInstances
 
 dependencies:
 - base >= 4.7 && < 5
   #- cereal >= 0.5.8
+- constraints >= 0.13
   #- cryptonite >= 0.29
 - distributive >= 0.5.3 && < 0.7
 - fin >= 0.2
+- gdp >= 0.0.3.0
   #- mtl >= 2.2.2
 - polysemy >= 1.4  
   #- polysemy-zoo >= 0.7
@@ -52,6 +57,7 @@ dependencies:
   #- random >= 1.2
   #- statistics >= 0.15
   #- Stream >= 0.4.7
+- type-level-sets >= 0.8.9.0
 - vec >= 0.4
 
 library:
