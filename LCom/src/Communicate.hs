@@ -1,35 +1,40 @@
 module Communicate
-    ( address
-    , addresses
+    ( addresses
     , Communicate()
     , noEffectSingleThread
     , locally
     , Party
     , send
     , runClique
-    , runMyPart
+    , ignoreHead
     ) where
 
 import Data.Distributive (distribute)
+import Data.Fin (Fin)
 import Data.Maybe (fromJust)
 import Data.Type.Nat (Mult, Nat(Z,S), Plus, SNatI)
 import Data.Type.Set (IsSet, Union)
 import qualified Data.Type.Set as Set
 import Data.Vec.Lazy (chunks, singleton, split, Vec(VNil))
 import qualified Data.Vec.Lazy as Vec
-import Polysemy (interpret, Member, reinterpret, reinterpret2, Sem)
+import Polysemy (interpret, Member, Members, reinterpret, reinterpret3, Sem)
 import Polysemy.Input (Input, input)
 import qualified Polysemy.Internal as PI  -- God help us.
 import Polysemy.Output (Output, output)
 
-import Subset (immediateSubset, Subset, SubsetProof, transitiveSubset, unionOfSubsets)
+import Subset (immediateSubset, Subset, SubsetProof, subsetTail, transitiveSubset, unionOfSubsets)
 
 
 -------- Parties --------
 
-newtype Party = Party {address :: Int} deriving (Enum, Eq, Ord, Show)
+newtype Party = Party Nat deriving (Enum, Eq, Ord, Show)
 
-addresses :: 
+class Addressable (parties :: [Party]) where
+  addresses :: [Integer]
+instance Addressable '[] where
+  addresses = []
+instance (Addressable ps, SNatI n) => Addressable (('Party n) ': ps) where
+  addresses = (toInteger $ maxBound @(Fin ('S n))) : (addresses @ps)
 
 data Located (parties :: [Party]) v = Located v
 instance Functor (Located parties) where
@@ -39,6 +44,8 @@ instance Applicative (Located parties) where
   (Located f) <*> (Located v) = Located (f v)
 instance Monad (Located parties) where
   (Located v) >>= f = f v
+pretend :: forall ps v. Located ps v
+pretend = undefined
 
     
 -------- Effect Signatures --------
@@ -137,16 +144,53 @@ noEffectSingleThread = interpret $ \case
   SendMaybe _ _ (Located v) -> return (Located v)
   Locally (Located v) -> return v
 
--- Communication by the local party would turn into IO read/write on a network port;
--- all other communication should simply be skipped.
-runMyPart :: forall p parties s r a.
-             (IsSet parties,
-              Set.Member p parties) =>
-             Sem (Communicate parties s ': r) a -> Sem (Input (Maybe s) ': Output (Maybe s) ': r) a
-runMyPart = reinterpret2 $ \case  -- I think I can make this work using a closed type family or something; IDK.
-  SendMaybe rp sp (Located v) -> undefined
+class IgnoreSend (p :: Party) (recipients :: [Party]) (senders :: [Party]) (parties :: [Party]) where
+  ignoreSend :: (Member (Communicate parties s) r) =>
+                SubsetProof recipients (p ': parties)
+                -> SubsetProof senders (p ': parties)
+                -> Located senders (Maybe s)
+                -> Sem r (Located recipients (Maybe s))
+--instance p recipients senders '[] where
+--  ignoreSend _ _ _ = return pretend
+instance IgnoreSend p (p ': recipients) (p ': senders) (p ': parties) where
+  ignoreSend rp sp (Located m) = do (Located m') <- sendMaybe (subsetTail rp) (subsetTail sp) (Located m)
+                                    return (Located m')
+ 
+
+ignoreHead :: forall p parties s r a.
+              (IsSet (p ': parties)) =>
+              Sem (Communicate (p ': parties) s ': r) a -> Sem (Communicate parties s ': r) a
+ignoreHead = reinterpret $ \case  -- I think I can make this work using a closed type family or something; IDK.
+  SendMaybe rp sp (Located v) -> ignoreSend @p 
   Locally (Located v) -> undefined
 
+{-
+class MakeSend (p :: Party) (recipients :: [Party]) (senders :: [Party]) (parties :: [Party]) where
+  makeSend :: (Members '[Input (Maybe s), Output ([Integer], Maybe s), Communicate parties s] r) =>
+              SubsetProof recipients (p ': parties)
+              -> SubsetProof senders (p ': parties)
+              -> Located senders v
+              -> Sem r (Located recipients v)
+--instance MakeSend p recipients senders '[] where
+--  makeSend _ _ _ = return pretend
+instance MakeSend p recipients '[] (p ': parties) where
+  makeSend _ _ _ = return pretend
+instance MakeSend p '[] senders parties where
+  makeSend _ _ _ = return pretend
+instance MakeSend p (p ': recipients) (p ': senders) (p ': parties) where
+  makeSend _ _ (Located v) = return (Located v)
+instance MakeSend p (p ': recipients) senders (p ': parties) where
+  makeSend _ _ (Located v) = undefined
+
+-- Communication by the local party would turn into IO read/write on a network port;
+-- all other communication should simply be skipped.
+runHead :: forall p parties s r a.
+           (IsSet (p ': parties)) =>
+           Sem (Communicate (p ': parties) s ': r) a -> Sem (Communicate parties s ': Input (Maybe s) ': Output ([Integer], Maybe s) ': r) a
+runHead = reinterpret3 $ \case  -- I think I can make this work using a closed type family or something; IDK.
+  SendMaybe rp sp (Located v) -> undefined
+  Locally (Located v) -> undefined
+-}
 
 -- And there should be another handler, similar to noEffectSingleThread,
 -- which will run single-threaded by collect a structured log of all communication. 
