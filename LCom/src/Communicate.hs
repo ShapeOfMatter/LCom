@@ -6,7 +6,7 @@ module Communicate
     , Party
     , send
     , runClique
-    , ignoreHead
+    --, ignoreHead
     ) where
 
 import Data.Distributive (distribute)
@@ -17,7 +17,7 @@ import Data.Type.Set (IsSet, Union)
 import qualified Data.Type.Set as Set
 import Data.Vec.Lazy (chunks, singleton, split, Vec(VNil))
 import qualified Data.Vec.Lazy as Vec
-import Polysemy (interpret, Member, Members, reinterpret, reinterpret3, Sem)
+import Polysemy (interpret, Member, Members, reinterpret, reinterpret2, reinterpret3, Sem)
 import Polysemy.Input (Input, input)
 import qualified Polysemy.Internal as PI  -- God help us.
 import Polysemy.Output (Output, output)
@@ -68,6 +68,21 @@ sendMaybe :: forall recipients senders parties s r.
 sendMaybe rp sp x = PI.send $ SendMaybe rp sp x
 locally :: (Member (Communicate parties s) r) => Located parties a  -> Sem r a
 locally x = PI.send $ Locally x
+
+data Local i o m a where -- no membership/subset constraints?
+  LocalInput :: forall (p :: Party) i o m.
+                Local i o m (Located '[p] i)
+  LocalOutput :: forall (p :: Party) i o m.
+                 Located '[p] o -> Local i o m ()
+
+localInput :: forall (p :: Party) i o r.
+              (Member (Local i o) r) =>
+              Sem r (Located '[p] i)
+localInput = PI.send $ LocalInput
+localOutput :: forall (p :: Party) i o r.
+               (Member (Local i o) r) =>
+               Located '[p] o -> Sem r ()
+localOutput x = PI.send $ LocalOutput x
 
 
 -------- Effectful Helpers --------
@@ -144,6 +159,36 @@ noEffectSingleThread = interpret $ \case
   SendMaybe _ _ (Located v) -> return (Located v)
   Locally (Located v) -> return v
 
+-- Requisite for all the other handlers:
+data Transmit (parties :: [Party]) s m a where
+  TransmitMaybe :: forall senders parties s m.
+                   SubsetProof senders parties
+                   -> Located senders (Maybe s)
+                   -> Transmit parties s m ()
+transmitMaybe :: forall senders parties s r.
+                 (Member (Transmit parties s) r) =>
+                 SubsetProof senders parties
+                 -> Located senders (Maybe s)
+                 -> Sem r ()
+transmitMaybe sp x = PI.send $ TransmitMaybe sp x
+data Recieve (parties :: [Party]) s m a where
+  RecieveMaybe :: forall recipients parties s m.
+                  SubsetProof recipients parties
+                  -> Recieve parties s m (Located recipients (Maybe s))
+recieveMaybe :: forall recipients parties s r.
+                (Member (Recieve parties s) r) =>
+                SubsetProof recipients parties
+                -> Sem r (Located recipients (Maybe s))
+recieveMaybe sp = PI.send $ RecieveMaybe sp
+
+splitTasks :: forall parties s r a.
+              Sem (Communicate parties s ': r) a -> Sem (Transmit parties s ': Recieve parties s ': r) a
+splitTasks = reinterpret2 $ \case -- possibly a layer of State here would help with the dispatching?
+  SendMaybe rp sp x -> do transmitMaybe sp x
+                          recieveMaybe rp
+  Locally (Located v) -> return v
+
+
 class IgnoreSend (p :: Party) (recipients :: [Party]) (senders :: [Party]) (parties :: [Party]) where
   ignoreSend :: (Member (Communicate parties s) r) =>
                 SubsetProof recipients (p ': parties)
@@ -157,14 +202,14 @@ instance IgnoreSend p (p ': recipients) (p ': senders) (p ': parties) where
                                     return (Located m')
  
 
+{-
 ignoreHead :: forall p parties s r a.
               (IsSet (p ': parties)) =>
               Sem (Communicate (p ': parties) s ': r) a -> Sem (Communicate parties s ': r) a
 ignoreHead = reinterpret $ \case  -- I think I can make this work using a closed type family or something; IDK.
-  SendMaybe rp sp (Located v) -> ignoreSend @p 
+  SendMaybe rp sp (Located v) -> ignoreSend rp sp (Located v)
   Locally (Located v) -> undefined
 
-{-
 class MakeSend (p :: Party) (recipients :: [Party]) (senders :: [Party]) (parties :: [Party]) where
   makeSend :: (Members '[Input (Maybe s), Output ([Integer], Maybe s), Communicate parties s] r) =>
               SubsetProof recipients (p ': parties)
