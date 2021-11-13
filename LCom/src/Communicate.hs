@@ -1,53 +1,22 @@
 module Communicate
-    ( addresses
-    , Communicate()
+    ( Communicate()
     , noEffectSingleThread
     , locally
-    , Party
     , send
     , runClique
     --, ignoreHead
     ) where
 
 import Data.Distributive (distribute)
-import Data.Fin (Fin)
-import Data.Maybe (fromJust)
-import Data.Type.Nat (Mult, Nat(Z,S), Plus, SNatI)
 import Data.Type.Set (IsSet, Union)
-import qualified Data.Type.Set as Set
-import Data.Vec.Lazy (chunks, singleton, split, Vec(VNil))
-import qualified Data.Vec.Lazy as Vec
-import Polysemy (interpret, Member, Members, reinterpret, reinterpret2, reinterpret3, Sem)
-import Polysemy.Input (Input, input)
+import Data.Vec.Lazy (Vec)
+import Polysemy (interpret, Member, reinterpret, Sem)
 import qualified Polysemy.Internal as PI  -- God help us.
-import Polysemy.Output (Output, output)
 
-import Subset (immediateSubset, Subset, SubsetProof, subsetTail, transitiveSubset, unionOfSubsets)
+import Data (deserialize, Located(Located), Party, Sendable, serialize)
+import Subset (immediateSubset, Subset, SubsetProof, transitiveSubset, unionOfSubsets)
 
 
--------- Parties --------
-
-newtype Party = Party Nat deriving (Enum, Eq, Ord, Show)
-
-class Addressable (parties :: [Party]) where
-  addresses :: [Integer]
-instance Addressable '[] where
-  addresses = []
-instance (Addressable ps, SNatI n) => Addressable (('Party n) ': ps) where
-  addresses = (toInteger $ maxBound @(Fin ('S n))) : (addresses @ps)
-
-data Located (parties :: [Party]) v = Located v
-instance Functor (Located parties) where
-  fmap f (Located v) = Located (f v)
-instance Applicative (Located parties) where
-  pure = Located
-  (Located f) <*> (Located v) = Located (f v)
-instance Monad (Located parties) where
-  (Located v) >>= f = f v
-pretend :: forall ps v. Located ps v
-pretend = undefined
-
-    
 -------- Effect Signatures --------
 
 data Communicate (parties :: [Party]) s m a where  -- s is for subject, as in the subject of the verb "communicate".
@@ -69,21 +38,6 @@ sendMaybe rp sp x = PI.send $ SendMaybe rp sp x
 locally :: (Member (Communicate parties s) r) => Located parties a  -> Sem r a
 locally x = PI.send $ Locally x
 
-data Local i o m a where -- no membership/subset constraints?
-  LocalInput :: forall (p :: Party) i o m.
-                Local i o m (Located '[p] i)
-  LocalOutput :: forall (p :: Party) i o m.
-                 Located '[p] o -> Local i o m ()
-
-localInput :: forall (p :: Party) i o r.
-              (Member (Local i o) r) =>
-              Sem r (Located '[p] i)
-localInput = PI.send $ LocalInput
-localOutput :: forall (p :: Party) i o r.
-               (Member (Local i o) r) =>
-               Located '[p] o -> Sem r ()
-localOutput x = PI.send $ LocalOutput x
-
 
 -------- Effectful Helpers --------
 -- In practice these will be used instead of the raw constructor.
@@ -101,11 +55,6 @@ runClique = (Located <$>) . (reinterpret _clique)
                    Communicate clq s (Sem rInitial) x -> Sem (Communicate parties s ': r) x
         _clique (SendMaybe rc sc l) = sendMaybe (transitiveSubset rc cp) (transitiveSubset sc cp) l
         _clique (Locally (Located v)) = return v
-
-class (SNatI n) => Sendable s t n where
-  -- Implementations must guarentee that `deserialize . serialize == id`.
-  serialize :: t -> Vec n (Maybe s)
-  deserialize :: Vec n (Maybe s) -> t
 
 send :: forall (recipients :: [Party]) (senders :: [Party]) (parties :: [Party]) r s t n.
         (IsSet recipients,
@@ -125,30 +74,6 @@ send l = do vl' <- sendVec vl
         sendVec :: Vec n (Located senders (Maybe s)) -> Sem r (Vec n (Located (Union recipients senders) (Maybe s)))
         sendVec = sequence . (sendMb <$>)
 
-instance Sendable s s ('S 'Z) where
-  serialize = singleton . Just
-  deserialize = fromJust . Vec.head
-instance Sendable s () 'Z where
-  serialize = const VNil
-  deserialize = const ()
-instance Sendable s (Maybe s) ('S 'Z) where
-  serialize = singleton
-  deserialize = Vec.head
-instance (Sendable s t n,
-          SNatI m,
-          SNatI mn,
-          mn ~ (Mult m n)) =>
-         Sendable s (Vec m t) mn where
-  serialize = Vec.concatMap @t @n serialize
-  deserialize = (deserialize <$>) . (chunks @m @n)
-instance (Sendable s t1 n1,
-          Sendable s t2 n2,
-          SNatI nn,
-          nn ~ (Plus n1 n2)) =>
-         Sendable s (t1, t2) nn where
-  serialize (t1, t2) = (Vec.++) @n1 @(Maybe s) @n2 (serialize t1) (serialize t2)
-  deserialize vv = let (v1, v2) = split @n1 @n2 vv in (deserialize v1, deserialize v2)
-  
 
 -------- Handlers --------
 
@@ -159,6 +84,7 @@ noEffectSingleThread = interpret $ \case
   SendMaybe _ _ (Located v) -> return (Located v)
   Locally (Located v) -> return v
 
+{-
 -- Requisite for all the other handlers:
 data Transmit (parties :: [Party]) s m a where
   TransmitMaybe :: forall senders parties s m.
@@ -239,5 +165,5 @@ runHead = reinterpret3 $ \case  -- I think I can make this work using a closed t
 
 -- And there should be another handler, similar to noEffectSingleThread,
 -- which will run single-threaded by collect a structured log of all communication. 
-
+-}
 

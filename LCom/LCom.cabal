@@ -25,8 +25,10 @@ source-repository head
 library
   exposed-modules:
       Communicate
+      Data
       Examples
       Lib
+      Local
       Subset
   other-modules:
       Paths_LCom
@@ -37,6 +39,7 @@ library
       DataKinds
       FlexibleContexts
       FlexibleInstances
+      FunctionalDependencies
       GADTs
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -73,6 +76,7 @@ executable LCom-exe
       DataKinds
       FlexibleContexts
       FlexibleInstances
+      FunctionalDependencies
       GADTs
       GeneralizedNewtypeDeriving
       LambdaCase
@@ -111,6 +115,7 @@ test-suite LCom-test
       DataKinds
       FlexibleContexts
       FlexibleInstances
+      FunctionalDependencies
       GADTs
       GeneralizedNewtypeDeriving
       LambdaCase
