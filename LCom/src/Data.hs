@@ -2,8 +2,9 @@ module Data
     ( address
     , addresses
     , deserialize
+    , downcast
     , Located(Located)
-    , Party
+    , Party(Party)
     , pretend
     , Sendable
     , serialize
@@ -15,6 +16,7 @@ import Data.Type.Nat (Mult, Nat(Z,S), Plus, SNatI)
 import Data.Vec.Lazy (chunks, singleton, split, Vec(VNil))
 import qualified Data.Vec.Lazy as Vec
 
+import Subset (Subset)
 
 newtype Party = Party { a :: Nat } deriving (Enum, Eq, Ord, Show)
 
@@ -43,6 +45,9 @@ instance Monad (Located parties) where
 
 pretend :: forall ps v. Located ps v
 pretend = Located undefined
+
+downcast :: (Subset ps' ps) => Located ps x -> Located ps' x
+downcast (Located x) = Located x
 
 
 class (SNatI n) => Sendable s t n where

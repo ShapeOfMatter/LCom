@@ -8,13 +8,12 @@ module Communicate
     ) where
 
 import Data.Distributive (distribute)
-import Data.Type.Set (IsSet, Union)
 import Data.Vec.Lazy (Vec)
 import Polysemy (interpret, Member, reinterpret, Sem)
 import qualified Polysemy.Internal as PI  -- God help us.
 
 import Data (deserialize, Located(Located), Party, Sendable, serialize)
-import Subset (immediateSubset, Subset, SubsetProof, transitiveSubset, unionOfSubsets)
+import Subset (immediateSubset, Subset, SubsetProof, transitiveSubset)
 
 
 -------- Effect Signatures --------
@@ -45,9 +44,7 @@ locally x = PI.send $ Locally x
 -- Technically a handler, but it feels like it belongs here.
 --clique :: forall parties cs s r a (recipients :: [Party]) (senders :: [Party]).
 runClique :: forall parties clq s r a.
-             (IsSet parties,
-              IsSet clq,
-              Subset clq parties) =>
+             (Subset clq parties) =>
              Sem (Communicate clq s ': r) a -> Sem (Communicate parties s ': r) (Located clq a)
 runClique = (Located <$>) . (reinterpret _clique)
   where cp = immediateSubset :: SubsetProof clq parties
@@ -56,30 +53,26 @@ runClique = (Located <$>) . (reinterpret _clique)
         _clique (SendMaybe rc sc l) = sendMaybe (transitiveSubset rc cp) (transitiveSubset sc cp) l
         _clique (Locally (Located v)) = return v
 
-send :: forall (recipients :: [Party]) (senders :: [Party]) (parties :: [Party]) r s t n.
-        (IsSet recipients,
-         IsSet senders,
-         IsSet parties,
-         Subset recipients parties,
+send :: forall (recipients :: [Party]) n (senders :: [Party]) (parties :: [Party]) r s t .
+        (Subset recipients parties,
          Subset senders parties,
          Member (Communicate parties s) r,
          Sendable s t n) =>
-        Located senders t -> Sem r (Located (Union recipients senders) t)
+        Located senders t -> Sem r (Located recipients t)
 send l = do vl' <- sendVec vl
             return (deserialize <$> sequence vl')
   where rp = immediateSubset @recipients
         sp = immediateSubset @senders
-        sendMb = sendMaybe (unionOfSubsets rp sp) sp
+        sendMb = sendMaybe rp sp
         vl = distribute $ serialize <$> l
-        sendVec :: Vec n (Located senders (Maybe s)) -> Sem r (Vec n (Located (Union recipients senders) (Maybe s)))
+        sendVec :: Vec n (Located senders (Maybe s)) -> Sem r (Vec n (Located recipients (Maybe s)))
         sendVec = sequence . (sendMb <$>)
 
 
 -------- Handlers --------
 
 -- Not very useful, but easy to write, and I wanna validate any of this works today.
-noEffectSingleThread :: (IsSet parties) =>
-                        Sem (Communicate parties s ': r) a -> Sem r a
+noEffectSingleThread :: Sem (Communicate parties s ': r) a -> Sem r a
 noEffectSingleThread = interpret $ \case
   SendMaybe _ _ (Located v) -> return (Located v)
   Locally (Located v) -> return v

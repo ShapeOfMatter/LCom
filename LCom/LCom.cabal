@@ -27,7 +27,6 @@ library
       Communicate
       Data
       Examples
-      Lib
       Local
       Subset
   other-modules:

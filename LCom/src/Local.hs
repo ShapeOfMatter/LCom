@@ -5,19 +5,12 @@ module Local
     , runLocalIO
     ) where
 
-import Data.Distributive (distribute)
-import Data.Type.Equality (type (==))
-import Data.Type.Set (IsSet, Union)
-import qualified Data.Type.Set as Set
-import Data.Vec.Lazy (chunks, singleton, split, Vec(VNil))
-import qualified Data.Vec.Lazy as Vec
-import Polysemy (intercept, interpret, Member, Members, reinterpret, reinterpret2, reinterpret3, Sem)
+import Polysemy (Member, reinterpret2, Sem)
 import Polysemy.Input (Input, input, runInputConst)
 import qualified Polysemy.Internal as PI  -- God help us.
 import Polysemy.Output (Output, output, runOutputList)
 
-import Data (address, addresses, deserialize, Located(Located), Party, pretend, Sendable, serialize)
-import Subset (immediateSubset, Subset, SubsetProof, subsetTail, transitiveSubset, unionOfSubsets)
+import Data (Located(Located), Party, pretend)
 
 
 -------- Effect Signatures --------
