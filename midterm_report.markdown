@@ -261,4 +261,5 @@ and actual instances for all parties can be declared in user-code.
 This will be unwieldly, but I think it will work and I'm running low on ideas.
 
 ## Github
-
+Most of the example code here has had minor simplificaitons to make it easier to read. 
+The current code-base is [online](https://github.com/ShapeOfMatter/LCom).
