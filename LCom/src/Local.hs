@@ -37,21 +37,25 @@ localOutput x = PI.send $ LocalOutput x
 
 -------- Handlers --------
 
-runLocalIO :: forall i o r a.
-              Integer
-              -> i
+runLocalIO :: forall me i o r a.
+              (Address me) =>
+              i
               -> Sem (Local i o ': r) a
               -> Sem r ([o], a)
-runLocalIO me i = runOutputList . (runInputConst i) . interpretMyIO
+runLocalIO i = runOutputList . (runInputConst i) . interpretMyIO
   where myOutput :: forall (p :: Party).
                     (Address p) =>
                     Located '[p] o -> Sem (Input i ': Output o ': r) ()
         -- I'm avoiding binding to preserve lazyness; IDK if it matters.
-        myOutput = if (me == address @p) then (\case Located o -> output o) else (const $ return ())
+        myOutput = if (address @me == address @p)
+                   then (\case Located o -> output o)
+                   else (const $ return ())
         myInput :: forall (p :: Party) m.
                    (Address p) =>
                    Local i o m (Located '[p] i) -> Sem (Input i ': Output o ': r) (Located '[p] i)
-        myInput _ = if (me == address @p) then (Located <$> input) else (return pretend)
+        myInput _ = if (address @me == address @p)
+                    then (Located <$> input)
+                    else (return pretend)
         interpretMyIO :: forall b.
                          Sem (Local i o ': r) b
                          -> Sem (Input i ': Output o ': r) b
