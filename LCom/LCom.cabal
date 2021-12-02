@@ -28,6 +28,7 @@ library
       Data
       Examples
       Local
+      Parties
       Subset
   other-modules:
       Paths_LCom

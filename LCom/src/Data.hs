@@ -1,5 +1,7 @@
 module Data
-    ( address
+    ( Address
+    , address
+    , Addresses
     , addresses
     , deserialize
     , downcast
@@ -13,7 +15,7 @@ module Data
 import Data.Fin (Fin)
 import Data.Maybe (fromJust)
 import Data.Type.Nat (Mult, Nat(Z,S), Plus, SNatI)
-import Data.Vec.Lazy (chunks, singleton, split, Vec(VNil))
+import Data.Vec.Lazy (chunks, singleton, split, Vec)
 import qualified Data.Vec.Lazy as Vec
 
 import Subset (Subset)
@@ -29,8 +31,8 @@ class Addresses (parties :: [Party]) where
   addresses :: [Integer]
 instance Addresses '[] where
   addresses = []
-instance (Address p, Addresses ps) => Addresses (p ': ps) where
-  addresses = (address @p) : (addresses @ps)
+instance (SNatI n, Addresses ps) => Addresses ('Party n ': ps) where
+  addresses = (address @('Party n)) : (addresses @ps)
 
 
 data Located (parties :: [Party]) v = Located v
@@ -50,7 +52,7 @@ downcast :: (Subset ps' ps) => Located ps x -> Located ps' x
 downcast (Located x) = Located x
 
 
-class (SNatI n) => Sendable s t n where
+class (SNatI n) => Sendable s t n | s t -> n where
   -- Implementations must guarentee that `deserialize . serialize == id`.
   serialize :: t -> Vec n (Maybe s)
   deserialize :: Vec n (Maybe s) -> t
@@ -58,9 +60,6 @@ class (SNatI n) => Sendable s t n where
 instance Sendable s s ('S 'Z) where
   serialize = singleton . Just
   deserialize = fromJust . Vec.head
-instance Sendable s () 'Z where
-  serialize = const VNil
-  deserialize = const ()
 instance Sendable s (Maybe s) ('S 'Z) where
   serialize = singleton
   deserialize = Vec.head

@@ -8,32 +8,25 @@ module Communicate
     ) where
 
 import Data.Distributive (distribute)
+import Data.Type.Set (Subset)
 import Data.Vec.Lazy (Vec)
 import Polysemy (interpret, Member, reinterpret, Sem)
 import qualified Polysemy.Internal as PI  -- God help us.
 
 import Data (deserialize, Located(Located), Party, Sendable, serialize)
-import Subset (immediateSubset, Subset, SubsetProof, transitiveSubset)
 
 
 -------- Effect Signatures --------
 
 data Communicate (parties :: [Party]) s m a where  -- s is for subject, as in the subject of the verb "communicate".
-  SendMaybe :: forall recipients senders parties s m.
-               SubsetProof recipients parties
-               -> SubsetProof senders parties
-               -> Located senders (Maybe s)
-               -> Communicate parties s m (Located recipients (Maybe s))
-  Locally :: forall parties s m a.
-             Located parties a -> Communicate parties s m a
+  SendMaybe :: forall (recipients :: [Party]) (senders :: [Party]) parties s m.
+               Located senders (Maybe s) -> Communicate parties s m (Located recipients (Maybe s))
+  Locally :: Located parties a -> Communicate parties s m a
 
 sendMaybe :: forall recipients senders parties s r.
              (Member (Communicate parties s) r) =>
-             SubsetProof recipients parties
-             -> SubsetProof senders parties
-             -> Located senders (Maybe s)
-             -> Sem r (Located recipients (Maybe s))
-sendMaybe rp sp x = PI.send $ SendMaybe rp sp x
+             Located senders (Maybe s) -> Sem r (Located recipients (Maybe s))
+sendMaybe x = PI.send $ SendMaybe @recipients x
 locally :: (Member (Communicate parties s) r) => Located parties a  -> Sem r a
 locally x = PI.send $ Locally x
 
@@ -47,10 +40,9 @@ runClique :: forall parties clq s r a.
              (Subset clq parties) =>
              Sem (Communicate clq s ': r) a -> Sem (Communicate parties s ': r) (Located clq a)
 runClique = (Located <$>) . (reinterpret _clique)
-  where cp = immediateSubset :: SubsetProof clq parties
-        _clique :: forall rInitial x.
+  where _clique :: forall rInitial x.
                    Communicate clq s (Sem rInitial) x -> Sem (Communicate parties s ': r) x
-        _clique (SendMaybe rc sc l) = sendMaybe (transitiveSubset rc cp) (transitiveSubset sc cp) l
+        _clique (SendMaybe l) = sendMaybe l
         _clique (Locally (Located v)) = return v
 
 send :: forall (recipients :: [Party]) n (senders :: [Party]) (parties :: [Party]) r s t .
@@ -61,12 +53,9 @@ send :: forall (recipients :: [Party]) n (senders :: [Party]) (parties :: [Party
         Located senders t -> Sem r (Located recipients t)
 send l = do vl' <- sendVec vl
             return (deserialize <$> sequence vl')
-  where rp = immediateSubset @recipients
-        sp = immediateSubset @senders
-        sendMb = sendMaybe rp sp
-        vl = distribute $ serialize <$> l
+  where vl = distribute $ serialize <$> l
         sendVec :: Vec n (Located senders (Maybe s)) -> Sem r (Vec n (Located recipients (Maybe s)))
-        sendVec = sequence . (sendMb <$>)
+        sendVec = sequence . (sendMaybe <$>)
 
 
 -------- Handlers --------
@@ -74,7 +63,7 @@ send l = do vl' <- sendVec vl
 -- Not very useful, but easy to write, and I wanna validate any of this works today.
 noEffectSingleThread :: Sem (Communicate parties s ': r) a -> Sem r a
 noEffectSingleThread = interpret $ \case
-  SendMaybe _ _ (Located v) -> return (Located v)
+  SendMaybe (Located v) -> return (Located v)
   Locally (Located v) -> return v
 
 {-

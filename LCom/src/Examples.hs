@@ -6,12 +6,9 @@ import Data.Type.Nat (Nat(Z,S))
 import Polysemy (Sem)
 
 import Communicate (Communicate, locally, send)
-import Data (downcast, Party(Party))
+import Data (downcast)
 import Local (Local, localInput, localOutput)
-
-type Party0 = 'Party 'Z
-type Party1 = 'Party ('S 'Z)
-type Party2 = 'Party ('S ('S 'Z))
+import Parties (Party0, Party1)
 
 type Couple = '[Party0, Party1]
 
