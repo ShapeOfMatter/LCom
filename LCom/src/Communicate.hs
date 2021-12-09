@@ -15,7 +15,7 @@ import Polysemy.Input (Input, input)
 import qualified Polysemy.Internal as PI  -- God help us.
 import Polysemy.Output (Output, output)
 
-import Data (Address, address, Addresses, addresses, deserialize, Located(Located), Party, Sendable, serialize)
+import Data (Address, address, Addresses, addresses, deserialize, Located(Located), Party, pretend, Sendable, serialize)
 
 
 
@@ -114,7 +114,7 @@ runRecieve = reinterpret $ \case
   where rr :: forall recipients m.
               (Addresses recipients) =>
               Recieve parties s m (Located recipients (Maybe s)) -> Sem (Input (Maybe s) ': r) (Located recipients (Maybe s))
-        rr = if address @p `elem` addresses @recipients then const (Located <$> input) else const (return $ Located undefined)
+        rr = if address @p `elem` addresses @recipients then const (Located <$> input) else const (return pretend)
 
 splitTasks :: forall parties s r a.
               Sem (Communicate parties s ': r) a -> Sem (Transmit parties s ': Recieve parties s ': r) a
