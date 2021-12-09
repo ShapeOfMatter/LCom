@@ -2,12 +2,9 @@ module Examples
     ( shareAnInt
     ) where
 
-import Data.Type.Nat (Nat(Z,S))
 import Polysemy (Sem)
 
-import Communicate (Communicate, locally, send)
-import Data (downcast)
-import Local (Local, localInput, localOutput)
+import LCom (Communicate, downcast, Local, localInput, localOutput, locally, send)
 import Parties (Party0, Party1)
 
 type Couple = '[Party0, Party1]

@@ -2,7 +2,7 @@ module Parties where
 
 import Data.Type.Nat (Nat(Z,S))
 
-import Data (Party(Party))
+import LCom (Party(Party))
 
 type Party0 = 'Party                                                  'Z
 type Party1 = 'Party                                              ('S 'Z)

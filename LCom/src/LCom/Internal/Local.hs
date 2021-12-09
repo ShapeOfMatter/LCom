@@ -1,4 +1,4 @@
-module Local
+module LCom.Internal.Local
     ( Local
     , localInput
     , localOutput
@@ -10,7 +10,7 @@ import Polysemy.Input (Input, input, runInputConst)
 import qualified Polysemy.Internal as PI  -- God help us.
 import Polysemy.Output (Output, output, runOutputList)
 
-import Data (Address, address, Located(Located), Party, pretend)
+import LCom.Internal.Data (Address, address, Located(Located), Party, pretend)
 
 
 -------- Effect Signatures --------

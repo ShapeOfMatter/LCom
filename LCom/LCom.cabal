@@ -24,12 +24,12 @@ source-repository head
 
 library
   exposed-modules:
-      Communicate
-      Data
       Examples
-      Local
+      LCom
+      LCom.Internal.Communicate
+      LCom.Internal.Data
+      LCom.Internal.Local
       Parties
-      Subset
   other-modules:
       Paths_LCom
   hs-source-dirs:

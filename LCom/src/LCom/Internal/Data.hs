@@ -1,4 +1,4 @@
-module Data
+module LCom.Internal.Data
     ( Address
     , address
     , Addresses
@@ -15,10 +15,10 @@ module Data
 import Data.Fin (Fin)
 import Data.Maybe (fromJust)
 import Data.Type.Nat (Mult, Nat(Z,S), Plus, SNatI)
+import Data.Type.Set (Subset)
 import Data.Vec.Lazy (chunks, singleton, split, Vec)
 import qualified Data.Vec.Lazy as Vec
 
-import Subset (Subset)
 
 newtype Party = Party { a :: Nat } deriving (Enum, Eq, Ord, Show)
 

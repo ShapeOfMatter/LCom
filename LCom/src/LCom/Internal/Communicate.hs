@@ -1,4 +1,4 @@
-module Communicate
+module LCom.Internal.Communicate
     ( Communicate()
     , noEffectSingleThread
     , locally
@@ -15,7 +15,7 @@ import Polysemy.Input (Input, input)
 import qualified Polysemy.Internal as PI  -- God help us.
 import Polysemy.Output (Output, output)
 
-import Data (Address, address, Addresses, addresses, deserialize, Located(Located), Party, pretend, Sendable, serialize)
+import LCom.Internal.Data (Address, address, Addresses, addresses, deserialize, Located(Located), Party, pretend, Sendable, serialize)
 
 
 

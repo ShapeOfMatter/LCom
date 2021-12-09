@@ -2,9 +2,8 @@ module Main where
 
 import Polysemy (run)
 
-import Communicate (noEffectSingleThread)
+import LCom (noEffectSingleThread, runLocalIO)
 import Examples (shareAnInt)
-import Local (runLocalIO)
 import Parties (Party0)
 
 shareAnIntParty0 :: Int -> IO ()
