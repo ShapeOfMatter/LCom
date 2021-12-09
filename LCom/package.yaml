@@ -62,6 +62,7 @@ dependencies:
 - vec >= 0.4
 
 library:
+  ghc-options: -Wall
   source-dirs: src
 
 executables:

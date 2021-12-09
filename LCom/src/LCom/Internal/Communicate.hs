@@ -50,6 +50,8 @@ runClique = (Located <$>) . (reinterpret _clique)
         _clique (SendMaybe l) = sendMaybe l
         _clique (Locally (Located v)) = return v
 
+-- |Send a value from one or more parties to one or more recipients.  
+-- It's typically necessary to specify the recipients with a type application, _e.g._ `send @('[p1, p2]) myVal`.
 send :: forall (recipients :: [Party]) n (senders :: [Party]) (parties :: [Party]) r s t .
         (Subset recipients parties,
          Subset senders parties,

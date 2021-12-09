@@ -1,5 +1,9 @@
 module LCom
-  ( Communicate
+  ( Address
+  , address
+  , Addresses
+  , addresses
+  , Communicate
   , downcast
   , Local
   , Located()
@@ -10,6 +14,7 @@ module LCom
   , Party(Party)
   , runLocalIO
   , send
+  , Sendable
   , Subset
   ) where
 

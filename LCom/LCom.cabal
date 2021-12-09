@@ -52,7 +52,7 @@ library
       TypeOperators
       TypeFamilies
       UndecidableInstances
-  ghc-options: -fplugin=Polysemy.Plugin -Wall -O2
+  ghc-options: -fplugin=Polysemy.Plugin -Wall -O2 -Wall
   build-depends:
       base >=4.7 && <5
     , constraints >=0.13
