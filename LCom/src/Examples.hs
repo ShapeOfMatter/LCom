@@ -14,7 +14,7 @@ type Couple = '[Party0, Party1]
 
 shareAnInt :: Sem '[Local Int Int, Communicate Couple Int] Int
 shareAnInt = do i <- localInput @Party0
-                shared <- send @Couple @('S 'Z) i
+                shared <- send @Couple i
                 localOutput @Party1 (downcast shared)
                 opened <- locally shared
                 return opened
