@@ -2,11 +2,13 @@ module LCom.Internal.Local
     ( Local
     , localInput
     , localOutput
+    , runAllLocalIO
     , runLocalIO
     ) where
 
+import Data.List (genericIndex)
 import Polysemy (Member, reinterpret2, Sem)
-import Polysemy.Input (Input, input, runInputConst)
+import Polysemy.Input (Input, input, inputs, runInputConst)
 import qualified Polysemy.Internal as PI  -- God help us.
 import Polysemy.Output (Output, output, runOutputList)
 
@@ -63,4 +65,27 @@ runLocalIO i = runOutputList . (runInputConst i) . interpretMyIO
           li@(LocalInput) -> myInput li
           LocalOutput l -> myOutput l
 
+runAllLocalIO :: forall i o r a.
+                 [i]  -- Index-addressed inputs
+                 -> Sem (Local i o ': r) a
+                 -> Sem r ([(Integer, o)], a)
+runAllLocalIO is = runOutputList . (runInputConst is) . interpretAllIO
+  where runOutput :: forall (p :: Party).
+                     (Address p) =>
+                     Located '[p] o
+                     -> Sem (Input [i] ': Output (Integer, o) ': r) ()
+        -- I'm avoiding binding to preserve lazyness; IDK if it matters.
+        runOutput = \case Located o -> output (address @p, o)
+        runInput :: forall (p :: Party) m.
+                    (Address p) =>
+                    Local i o m (Located '[p] i)
+                    -> Sem (Input [i] ': Output (Integer, o) ': r) (Located '[p] i)
+        runInput _ = let index = (`genericIndex` address @p)
+                     in Located <$> inputs index
+        interpretAllIO :: forall b.
+                          Sem (Local i o ': r) b
+                          -> Sem (Input [i] ': Output (Integer, o) ': r) b
+        interpretAllIO = reinterpret2 $ \case
+          li@(LocalInput) -> runInput li
+          LocalOutput l -> runOutput l
 

@@ -10,9 +10,11 @@ module LCom
   , localInput
   , locally
   , localOutput
+  , logTransmissionsSingleThread
   , noEffectSingleThread
   , Party(Party)
   , runClique
+  , runAllLocalIO
   , runLocalIO
   , send
   , Sendable

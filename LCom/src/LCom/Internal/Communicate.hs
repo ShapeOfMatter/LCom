@@ -2,6 +2,7 @@ module LCom.Internal.Communicate
     ( Communicate()
     , noEffectSingleThread
     , locally
+    , logTransmissionsSingleThread
     , send
     , runClique
     , runParty
@@ -13,7 +14,7 @@ import Data.Vec.Lazy (Vec)
 import Polysemy (interpret, Member, reinterpret, reinterpret2, Sem, subsume_)
 import Polysemy.Input (Input, input)
 import qualified Polysemy.Internal as PI  -- God help us.
-import Polysemy.Output (Output, output)
+import Polysemy.Output (Output, output, runOutputList)
 
 import LCom.Internal.Data (Address, address, Addresses, addresses, deserialize, Located(Located), Party, pretend, Sendable, serialize)
 
@@ -74,6 +75,30 @@ noEffectSingleThread :: Sem (Communicate parties s ': r) a -> Sem r a
 noEffectSingleThread = interpret $ \case
   SendMaybe (Located v) -> return (Located v)
   Locally (Located v) -> return v
+
+data Transmission s where
+  Transmission :: [Integer] -> [Integer] -> Maybe s -> Transmission s
+instance (Show s) => Show (Transmission s) where
+  show (Transmission f t m) = (show f) <> "→" <> (show t) <> ": " <> (maybe "∅" show m)
+
+logTransmissionsSingleThread :: forall parties s r a.
+                                Sem (Communicate parties s ': r) a
+                                -> Sem r ([Transmission s], a)
+logTransmissionsSingleThread = runOutputList . (reinterpret $ \case
+  smlv@(SendMaybe (Located v)) -> do logSend smlv
+                                     return (Located v)
+  Locally (Located v) -> return v
+  )
+  where logSend :: forall recipients m.
+                   (Addresses recipients) =>
+                   Communicate parties s m (Located recipients (Maybe s))
+                   -> Sem (Output (Transmission s) ': r) ()
+        logSend (SendMaybe lv@(Located v)) = output $ Transmission (getSenders lv) (addresses @recipients) v
+        logSend _ = error "This is impossible because this is only called from the pattern match above."
+        getSenders :: forall senders.
+                      (Addresses senders) =>
+                      Located senders (Maybe s) -> [Integer]
+        getSenders _ = addresses @senders
 
 -- Requisite for all the other handlers:
 data Transmit (parties :: [Party]) s m a where

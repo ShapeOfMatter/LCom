@@ -33,8 +33,11 @@ threePartyXOR = do inputs0 <- setup @Party0
                    total0 <- round2 (message00, message01, message02)
                    total1 <- round2 (message10, message11, message12)
                    total2 <- round2 (message20, message21, message22)
-                   total <- locally $ xor <$> total0 <*> (xor <$> total1 <*> total2)
-                   return total
+                   let total = xor <$> total0 <*> (xor <$> total1 <*> total2)
+                   localOutput @Party0 $ downcast total
+                   localOutput @Party1 $ downcast total
+                   localOutput @Party2 $ downcast total
+                   locally total
   where setup :: forall (p :: Party) r.
                  (Address p,
                   Member (Local (Bool, g) Bool) r) =>
