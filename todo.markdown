@@ -1,0 +1,2 @@
+- implement send as single-party, and broadcast or whatever as set-of-parties.
+- utility functions for transposing located data structures.

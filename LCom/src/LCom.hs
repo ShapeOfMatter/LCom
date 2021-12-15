@@ -12,6 +12,7 @@ module LCom
   , localOutput
   , noEffectSingleThread
   , Party(Party)
+  , runClique
   , runLocalIO
   , send
   , Sendable

@@ -31,8 +31,8 @@ class Addresses (parties :: [Party]) where
   addresses :: [Integer]
 instance Addresses '[] where
   addresses = []
-instance (SNatI n, Addresses ps) => Addresses ('Party n ': ps) where
-  addresses = (address @('Party n)) : (addresses @ps)
+instance (Address p, Addresses ps) => Addresses (p ': ps) where
+  addresses = (address @p) : (addresses @ps)
 
 
 data Located (parties :: [Party]) v = Located v

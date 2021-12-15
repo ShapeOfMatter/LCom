@@ -55,7 +55,7 @@ dependencies:
   #- polysemy-zoo >= 0.7
 - polysemy-plugin >= 0.3
   #- QuickCheck >= 2.14
-  #- random >= 1.2
+- random >= 1.2
   #- statistics >= 0.15
   #- Stream >= 0.4.7
 - type-level-sets >= 0.8.9.0

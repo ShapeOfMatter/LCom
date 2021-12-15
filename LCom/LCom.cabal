@@ -61,6 +61,7 @@ library
     , gdp >=0.0.3.0
     , polysemy >=1.4
     , polysemy-plugin >=0.3
+    , random >=1.2
     , type-level-sets >=0.8.9.0
     , vec >=0.4
   default-language: Haskell2010
@@ -99,6 +100,7 @@ executable LCom-exe
     , gdp >=0.0.3.0
     , polysemy >=1.4
     , polysemy-plugin >=0.3
+    , random >=1.2
     , type-level-sets >=0.8.9.0
     , vec >=0.4
   default-language: Haskell2010
@@ -138,6 +140,7 @@ test-suite LCom-test
     , gdp >=0.0.3.0
     , polysemy >=1.4
     , polysemy-plugin >=0.3
+    , random >=1.2
     , type-level-sets >=0.8.9.0
     , vec >=0.4
   default-language: Haskell2010
