@@ -16,6 +16,7 @@ module LCom
   , runClique
   , runAllLocalIO
   , runLocalIO
+  , runParty
   , send
   , Sendable
   , Subset

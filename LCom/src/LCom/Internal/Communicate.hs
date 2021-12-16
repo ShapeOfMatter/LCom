@@ -6,6 +6,7 @@ module LCom.Internal.Communicate
     , send
     , runClique
     , runParty
+    , Transmission(Transmission)
     ) where
 
 import Data.Distributive (distribute)

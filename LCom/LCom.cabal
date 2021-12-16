@@ -30,6 +30,7 @@ library
       LCom.Internal.Data
       LCom.Internal.Local
       Parties
+      Transmission
   other-modules:
       Paths_LCom
   hs-source-dirs:
@@ -54,7 +55,8 @@ library
       UndecidableInstances
   ghc-options: -fplugin=Polysemy.Plugin -Wall -O2 -Wall
   build-depends:
-      base >=4.7 && <5
+      QuickCheck >=2.14
+    , base >=4.7 && <5
     , constraints >=0.13
     , distributive >=0.5.3 && <0.7
     , fin >=0.2
@@ -93,6 +95,7 @@ executable LCom-exe
   ghc-options: -fplugin=Polysemy.Plugin -Wall -O2 -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       LCom
+    , QuickCheck >=2.14
     , base >=4.7 && <5
     , constraints >=0.13
     , distributive >=0.5.3 && <0.7
@@ -133,6 +136,7 @@ test-suite LCom-test
   ghc-options: -fplugin=Polysemy.Plugin -Wall -O2 -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       LCom
+    , QuickCheck >=2.14
     , base >=4.7 && <5
     , constraints >=0.13
     , distributive >=0.5.3 && <0.7

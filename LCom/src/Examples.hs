@@ -1,13 +1,18 @@
 module Examples
-    ( shareAnInt
+    ( raceTo100
+    , runInputOutputAsIO
+    , shareAnInt
     , threePartyXOR
     ) where
 
 import Data.Bits (xor)
-import Polysemy (Member, Sem)
-import System.Random (random, RandomGen)
+import Polysemy (Embed, embed, interpret, Member, reinterpret, Sem, subsume_)
+import Polysemy.Input (Input(Input))
+import Polysemy.Output (Output(Output))
+import Polysemy.State (execState, modify, State)
+import System.Random (random, randomR, RandomGen)
 
-import LCom (Address, Communicate, downcast, Located, Local, localInput, localOutput, locally, Party, send, Subset)
+import LCom (Address, Communicate, downcast, Located, Local, localInput, localOutput, locally, Party, runClique, send, Subset)
 import Parties (Party0, Party1, Party2)
 
 type Couple = '[Party0, Party1]
@@ -77,8 +82,51 @@ threePartyXOR = do inputs0 <- setup @Party0
         round2 (fromA, fromB, fromC) = do let total = xor <$> fromA <*> (xor <$> fromB <*> fromC)
                                           send @Trio total
 
+raceTo100 :: forall g.
+             (RandomGen g) =>
+             Sem '[Local g String, Communicate Trio Int] Int
+raceTo100 = execState 0 $ subsume_ race
+  where race = do rng0 <- localInput @Party0
+                  rng1 <- localInput @Party1
+                  rng2 <- localInput @Party2
+                  turn startingBase rng0 rng1 rng2
+        turn :: forall p1 p2 p3.
+                (Address p1, Subset '[p1] Trio,
+                 Address p2, Subset '[p2] Trio,
+                 Address p3, Subset '[p3] Trio) =>
+                Int ->
+                Located '[p1] g -> Located '[p2] g -> Located '[p3] g ->
+                Sem '[Communicate Trio Int, State Int, Local g String] ()
+        turn base rng1 rng2 rng3 = do modify (+ 1)
+                                      p1Trun <- runClique (
+                                        do localRNG <- locally rng1
+                                           let (roll, localRNG') = randomR (base - startingBase, 100) localRNG
+                                           let progress = roll > base
+                                           localOutput @p1 $ pure $ privateLog progress roll
+                                           return (if progress then Just roll else Nothing,
+                                                   localRNG')
+                                        )
+                                      let (mRoll, rng1') = (fst <$> p1Trun, snd <$> p1Trun)
+                                      opened <- send @Trio mRoll >>= locally
+                                      let base' = maybe base (max base) opened
+                                      if base' < 100
+                                        then turn base' rng2 rng3 rng1'
+                                        else do localOutput @p1 $ pure "I won!"
+        privateLog progress roll = "Rolled " <> (show roll) <> "; " <> if progress then "Progress!" else "Failure."
+        startingBase = 2
 
-
+runInputOutputAsIO :: forall o i r a.
+                      (Show o,
+                       Read i) =>
+                      Sem (Input i ': Output o ': r) a ->
+                      Sem (Embed IO ': r) a
+runInputOutputAsIO = outputToIO . subsume_ . inputToIO
+  where inputToIO :: Sem (Input i ': Output o ': r) a -> Sem (Embed IO ': Output o ': r) a
+        inputToIO = reinterpret $ \case Input -> embed $ do putStrLn "Input: "
+                                                            read <$> getLine
+        outputToIO :: Sem (Output o ': Embed IO ': r) a -> Sem (Embed IO ': r) a
+        outputToIO = interpret $ \case Output o -> embed $ do putStrLn "Output:"
+                                                              print o
 
 
 
