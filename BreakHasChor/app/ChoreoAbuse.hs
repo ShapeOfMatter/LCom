@@ -22,16 +22,22 @@ input loc = loc `locally` \_ -> do putStrLn $ "Enter input for " ++ toLocTm loc 
                                    getLine
 
 cheat :: (KnownSymbol l, KnownSymbol m) => Proxy l -> Proxy m -> String @ m -> Choreo IO (String @ l)
-cheat recvr sendr msg = (sendr, msg) ~> recvr
+cheat recvr sendr msg = do
+  void $ recvr `locally` \_ -> putStrLn "Before"
+  retval <- (sendr, msg) ~> recvr
+  void $ recvr `locally` \_ -> putStrLn "After"
+  return retval
 
 choreography :: Choreo IO ()
 choreography = do
   inputA <- input alpha
+  void $ beta `locally` \_ -> putStrLn "Before Before"
   outputB <- beta `locally` \un -> un <$> (runChoreo $ cheat beta alpha inputA)
+  void $ beta `locally` \_ -> putStrLn "After After"
   output beta outputB
 
 
-main :: IO ()
+main :: IO ()  -- IDK why the error is thrown so _late_, but that's not super important. Probably lazyness?
 main = do
     putStrLn "running simulation"
     runChoreo choreography
