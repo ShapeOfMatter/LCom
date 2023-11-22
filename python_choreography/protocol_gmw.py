@@ -94,7 +94,7 @@ def gmw(p1, p2, p1_inputs, p2_inputs, circuit):
 
     def share_inputs(p1, p2, p1_wire_vals, p2_wire_vals, inputs, wires):
         for inp, wire in zip(inputs, wires):
-            share1, share2 = (gen_shares@p1)(inp)
+            share1, share2 = chor.untup((gen_shares@p1)(inp))
             p1_wire_vals[wire] = share1
             share2_r = share2 >> p2
             p2_wire_vals[wire] = share2_r

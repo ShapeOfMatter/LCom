@@ -21,6 +21,11 @@ class LocatedVal:
     def __rshift__(self, party_to):
         return send(party_to, self)
 
+    def __str__(self):
+        return f'{self.val}@{self.party.name}'
+
+    __repr__ = __str__
+
 def get_val(lv, party):
     if isinstance(lv, LocatedVal):
         assert lv.party == party
@@ -40,10 +45,7 @@ def locally(party, f, *args, **kwargs):
     new_args = [get_val(lv, party) for lv in args]
     new_kwargs = {x: get_val(lv, party) for x, lv in kwargs}
     output = f(*new_args, **new_kwargs)
-    if isinstance(output, (tuple)):   # TODO: maybe this is confusing
-        return tuple([LocatedVal(party, v) for v in output])
-    else:
-        return LocatedVal(party, output)
+    return LocatedVal(party, output)
 
 def send(party_to, lv):
     party_from = lv.party
@@ -57,3 +59,10 @@ def unlist(ls):
     p = ls.party
 
     return [LocatedVal(p, x) for x in ls.val]
+
+def untup(ls):
+    assert isinstance(ls, LocatedVal)
+    assert isinstance(ls.val, tuple)
+    p = ls.party
+
+    return tuple([LocatedVal(p, x) for x in ls.val])

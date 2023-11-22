@@ -14,7 +14,9 @@ def f_mult(parties, a_shares, b_shares):
     # distribute shares of my product
     all_h_i_js = defaultdict(list)
     for p in parties:
-        h_is = chor.unlist((shamir.share@p)(mult_results[p][1], len(parties)//2, len(parties)))
+        h_is = chor.unlist((shamir.share@p)(chor.untup(mult_results[p])[1],
+                                            len(parties)//2,
+                                            len(parties)))
 
         for i, pp in enumerate(parties):
             all_h_i_js[pp].append(h_is[i] >> pp)
@@ -43,5 +45,6 @@ if __name__ == '__main__':
     b_shares = {p: chor.constant(p, s) for p, s in zip(parties, b_shares_d)}
 
     results = f_mult(parties, a_shares, b_shares)
-    result_shares = [(results[p][0].val, results[p][1].val) for p in parties]
+    result_shares = [(chor.untup(results[p])[0].val,
+                      chor.untup(results[p])[1].val) for p in parties]
     print('FINAL RESULT:', shamir.reconstruct(result_shares))
