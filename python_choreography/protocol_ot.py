@@ -31,7 +31,7 @@ def ot(select_bits, options):
     # ==================================================
 
     # generate keys
-    row_num, saved_key, pub_keys = (gen_keys@receiver)(select_bits)
+    row_num, saved_key, pub_keys = chor.untup((gen_keys@receiver)(select_bits))
 
     # send public keys to sender
     pub_keys_r = pub_keys >> sender
