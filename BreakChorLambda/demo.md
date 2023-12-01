@@ -65,8 +65,8 @@ The program `M` evaluates just fine under the primary semantic model.
 ### Projections
 
 Projecting `M` to `S` fails when it tries to merge `Inl ()` with `Inr ()`.
-There's also some ambiguity in how the rules for projection to `R` are supposed to work
-In the projection rule for abstractions, does _"type(x : T . M)"_ mean "the type ofif R ∈ roles(type(x : T.M )) M when `x:T`",
+There's also some ambiguity in how the rules for projection to `R` are supposed to work.
+In the projection rule for abstractions, does _"type(x : T . M)"_ mean _"the type of M when `x:T`"_,
 or is it supposed to say _"type(λ x : T . M)"_?
 ```network
 [[M]]_R = [[ ( λ a : (()@R + ()@R) . case a of Inl _ ⇒ Inl ()@S; Inr _ ⇒ Inr ()@S )    (Inl ()@R) ]]_R
