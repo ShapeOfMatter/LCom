@@ -2,8 +2,8 @@
 title: "Manually typing good and/or bad choreographies"
 author: Mako Bates
 date: 2023-11-30
-refers-to: "Functional Choreographic Programming\
-            Luís Cruz-Filipe, Eva Graversen, Lovro Lugović, Fabrizio Montesi, Marco Peressotti\
+refers-to: "Functional Choreographic Programming \
+            Luís Cruz-Filipe, Eva Graversen, Lovro Lugović, Fabrizio Montesi, Marco Peressotti \
             2023-08-17, https://arxiv.org/abs/2111.03701"
 ---
 
