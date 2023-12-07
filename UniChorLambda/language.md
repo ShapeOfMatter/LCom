@@ -194,6 +194,52 @@ And then we'll see if we can still prove deadlock freedom.
           {}
           {(λ x:T \DOT M) V \step M[x := V]}
           \\
+\inference[App1]
+          {N \step N'}
+          {(λ x:T \DOT M) N \step (λ x:T \DOT M) N'}
+\inference[App2]
+          {M \step M'}
+          {M N \step M' N}
+          \\
+\inference[Case]
+          {N \step N'}
+          {\CASE{N}{x_l}{M_l}{x_r}{M_r} \step \CASE{N'}{x_l}{M_l}{x_r}{M_r}}
+          \\
+\inference[CaseL]
+          {}
+          {\CASE{\INL V}{x_l}{M_l}{x_r}{M_r} \step M_l[x_l := V]}
+\inference[CaseR]
+          {\dots}
+          {\dots}
+          \\
+\inference[Proj1]
+          {}
+          {\FST (\PAIR V_1 V_2) \step V_1}
+\inference[Proj2]
+          {\dots}
+          {\dots}
+\inference[ProjN]
+          {}
+          {\LOOKUP_i (V_1, \dots, V_i, \dots, V_n) \step V_i}
+          \\
+\inference[Com1]
+          {}
+          {\COMM{\nonempty{r}} () \step ()}
+\inference[ComPair]
+          {\COMM{\nonempty{r}} V_1 \step V_1 \quad \COMM{\nonempty{r}} V_2 \step V_2}
+          {\COMM{\nonempty{r}} (\PAIR V_1 V_2) \step \PAIR V_1 V_2}
+          \\
+\inference[ComInl]
+          {\COMM{\nonempty{r}} V \step V}
+          {\COMM{\nonempty{r}} (\INL V) \step \INL V}
+\inference[ComInr]
+          {\dots}
+          {\dots}
+          \\
+\inference[Erasure]
+          {}
+          {M : T \step M}
+          \\
 \end{gather*}
 
 
