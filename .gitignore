@@ -1,3 +1,5 @@
 .stack-work/
 .~lock.*
 dist-newstyle
+gitignore
+
