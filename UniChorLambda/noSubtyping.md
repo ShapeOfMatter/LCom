@@ -7,6 +7,8 @@ header-includes:
   - \usepackage{amsmath}
   - \usepackage{mathtools}
   - \usepackage{semantic}
+geometry:
+  - margin=1.5cm
 ---
 
 \newcommand{\vdbl}{\\[8pt]}
@@ -23,11 +25,11 @@ header-includes:
 \newcommand{\INR}{\langword{Inr}}
 \newcommand{\CASE}[5]{\langword{case}#1\langword{of}\INL #2 ⇒ #3 ; \INR #4 ⇒ #5}
 \newcommand{\DOT}{\langword{.}}
-\newcommand{\FST}{\langword{fst}}
-\newcommand{\SND}{\langword{snd}}
-\newcommand{\LOOKUP}{\langword{lookup}}
+\newcommand{\FST}[1]{\langword{fst}_{#1}}
+\newcommand{\SND}[1]{\langword{snd}_{#1}}
+\newcommand{\LOOKUP}[2]{\langword{lookup}^{#1}_{#2}}
 \newcommand{\PAIR}{\langword{Pair}}
-\newcommand{\COMM}[1]{\langword{com}_{#1}}
+\newcommand{\COMM}[2]{\langword{com}_{#1;#2}}
 \newcommand{\nonempty}[1]{{#1^{+}}}
 \newcommand{\id}{\operatorname{\mathit{id}}}
 
@@ -43,26 +45,25 @@ header-includes:
 M  \BNF   &  V                       && \text{values}          \\
    \BNFOR &  M M                     && \text{function application}          \\
    \BNFOR &  \CASE{M}{x}{M}{x}{M}    \quad&& \text{branch on sum cases}          \\
-   \BNFOR &  M : T                   && \text{allow explicit typing, which may reduce a type.}\\
                                             \\
 V  \BNF   &  x                       && \text{variables}          \\
-   \BNFOR &  λ x:T \DOT M            && \text{function literals}          \\
+   \BNFOR &  (λ x:T \DOT M)@\nonempty{p}            && \text{function literals}          \\
+   \BNFOR &  ()@\nonempty{p}                      && \text{unit at locations}          \\
    \BNFOR &  \INL V                  && \text{injection to sum types}           \\
    \BNFOR &  \INR V                  && \text{}           \\
-   \BNFOR &  \FST                    && \text{projection of data pairs}           \\
-   \BNFOR &  \SND                    && \text{}           \\
    \BNFOR &  \PAIR V V               && \text{construction of data pairs}           \\
    \BNFOR &  (V, \dots, V)           && \text{construction of heterogeneous vectors}           \\
-   \BNFOR &  \LOOKUP_n               && \text{projection of vectors}           \\
-   \BNFOR &  ()                      && \text{unit}          \\
-   \BNFOR &  \COMM{\nonempty{p}}     && \text{send to recipient parties}            \\
+   \BNFOR &  \FST{\nonempty{p}}      && \text{projection of data pairs}           \\
+   \BNFOR &  \SND{\nonempty{p}}      && \text{}           \\
+   \BNFOR &  \LOOKUP{n}{\nonempty{p}}   && \text{projection of vectors}           \\
+   \BNFOR &  \COMM{p}{\nonempty{p}}     && \text{send to recipient parties}            \\
                                             \\
-d  \BNF   &  ()                      && \text{we could just leave the data types abstract...}           \\
+d  \BNF   &  ()         && \text{we could just leave the data types abstract...}   \\
    \BNFOR &  d + d                   && \text{}           \\
    \BNFOR &  d × d                   && \text{}           \\
                                             \\
 t  \BNF   &  d                       && \text{data types are base types}            \\
-   \BNFOR &  T →_\nonempty{p} T      && \text{so are functions functions}         \\
+   \BNFOR &  T → T      && \text{so are functions functions}         \\
    \\
 T  \BNF   &  t@\nonempty{p}          && \text{a located base type}             \\
    \BNFOR &  (T, \dots, T)           && \text{"vectors", which are really n-length tuples.}  \\
@@ -70,82 +71,48 @@ T  \BNF   &  t@\nonempty{p}          && \text{a located base type}             \
 
 
 
-I think might be important that the lists of parties at which a value resides
-are _lists_, not sets.
-That said, it's going to be much easier to write everything if I just casually
-use set operators
-like union and intersection, and define what they mean in an appendix or something.
-And maybe sets would be fine; IDK.
 Note the use of a super-script "+" to denote vectors instead of a hat or any such.
 This is because it's important that these lists never be empty.
 
 
-
+\pagebreak
 ### Typing
 
+A masking operator get's used in the typing rules.
+Note that this can fail, in which case the relevant precondition of the typing rule fails.
+
 \begin{align*}
-\owners(T_1, \dots, T_n) \DEF & ⋃_{i=1}^n \owners(T_i)
-\vdbl
-\owners(t@\nonempty{p}) \DEF & \nonempty{p} \\
+d@\nonempty{p} ⊳ Θ \DEF & \begin{cases}
+                          d@(\nonempty{p} ∩ Θ) & \nonempty{p} ∩ Θ ≠ ∅ \\
+                          \text{undefined} & \text{otherwise}
+                          \end{cases}
+                          \vdbl
+(T → T')@\nonempty{p} ⊳ Θ \DEF & \begin{cases}
+                                 (T → T')@\nonempty{p} & \nonempty{p} \subseteq Θ \\
+                                 \text{undefined} & \text{otherwise}
+                                 \end{cases}
+                                 \vdbl
+(T_1, \dots, T_n) ⊳ Θ \DEF & (T_1 ⊳ Θ, \dots, T_n ⊳ Θ)
 \end{align*}
 
-> **Theorem "Owners":**  
-> If $Θ;Γ ⊢ M : T$, then $\owners(T) \subseteq Θ$.  
-> PROOF: TODO.
-
-> **Theorem "Participants":**  
-> If $Θ;Γ ⊢ M : (T \to_{Θ'} T')@\nonempty{p}$,  
-> then $(\owners(T) ∪ \owners(T')) \subseteq Θ' \subseteq @\nonempty{p}$.  
-> PROOF: TODO.
-
-Although I'm not here implementing any _location polymorphism_,
-I am implementing a form of _subtyping_ based on the location sets.
-For best intuitiveness, I write $T ⊑ T'$ to mean $T$ is available to fewer parties than $T'$.
-That means values of type $T'$ can be substituted harmlessly for values of type $T$,
-which is backward from the usual orientation of subtyping.
+I'm gonna try to do this without any polymorphism _or_ subtyping.
 
 \begin{gather*}
-\myference{}
-          {d ≡ d'}
-          {d ⊑ d'}
-          \quad
-\myference{}
-          {\nonempty{p} \supseteq \nonempty{q} \quad
-           R ⊑ R' \quad
-           A ⊒ A'}
-          {A →_\nonempty{p} R ⊑ A' →_\nonempty{q} R'}
-          \vdbl
-\myference{}
-          {t ⊑ t' \quad
-           \nonempty{p} \subseteq \nonempty{q}}
-          {t@\nonempty{p} ⊑ t'@\nonempty{q}}
-          \quad
-\myference{}
-          {T_1 ⊑ T'_1 \quad \dots \quad T_n ⊑ T'_n}
-          {(T_1, \dots, T_n) ⊑ (T'_1, \dots, T'_n)}
-\end{gather*}
-
-\begin{gather*}
-\myference{Tsubtype}
-          {Θ;Γ ⊢ M : T' \quad T ⊑ T'}
-          {Θ;Γ ⊢ M : T}
-          \quad
-\myference{Ttyped}
-          {Θ;Γ ⊢ M : T}
-          {Θ;Γ ⊢ (M : T) : T}
-          \vdbl
 \myference{Tlambda}
-          {Θ';Γ,(x:T) ⊢ M : T' \quad \owners(T) \subseteq Θ' \subseteq Θ}
-          {Θ;Γ ⊢ (λ x:T \DOT M) : (T →_{Θ'} T')@Θ}
+          {\nonempty{p};Γ,(x:T) ⊢ M : T' \quad
+           \nonempty{p} \subseteq Θ \quad
+           T ⊳ \nonempty{p} = T}
+          {Θ;Γ ⊢ (λ x:t \dot m)@\nonempty{p} : (T → T')@\nonempty{p}}
           \vdbl
 \myference{Tvar}
-          {x : T \in Γ \quad T' = \id_Θ(T)}
+          {x : T \in Γ \quad T' = T ⊳ Θ}
           {Θ;Γ ⊢ x : T' }
           \vdbl
 \myference{Tapp}
-          {Θ;Γ ⊢ M : (T →_{Θ'} T')@\nonempty{p} \quad
-           Θ;Γ ⊢ N : T}
-          {Θ;Γ ⊢ M N : T'}
+          {Θ;Γ ⊢ M : (T_a → T_r)@\nonempty{p} \quad
+           Θ;Γ ⊢ N : T_a' \quad
+           T_a' ⊳ \nonempty{p} = T_a}
+          {Θ;Γ ⊢ M N : T_r}
           \vdbl
 \myference{Tcase}
           {Θ;Γ ⊢ N : (d_l + d_r)@\nonempty{p} \quad
@@ -154,12 +121,12 @@ which is backward from the usual orientation of subtyping.
           {Θ;Γ ⊢ \CASE{N}{x_l}{M_l}{x_r}{M_r} : T}
           \vdbl
 \myference{Tunit}
-          {}
-          {Θ;Γ ⊢ () : ()@Θ}
+          {\nonempty{p} \subseteq Θ}
+          {Θ;Γ ⊢ ()@\nonempty{p} : ()@\nonempty{p}}
           \vdbl
 \myference{Tcom}
-          {\nonempty{r} \subseteq Θ}
-          {Θ;Γ ⊢ \COMM{\nonempty{r}} : (d@s → d@\nonempty{r})@Θ}
+          {s,\nonempty{r} \subseteq Θ}
+          {Θ;Γ ⊢ \COMM{s}{\nonempty{r}} : (d@s → d@\nonempty{r})@(s,\nonempty{r})}
           \vdbl
 \myference{Tpair}
           {Θ;Γ ⊢ V_1 : d_1@\nonempty{p_1} \quad
@@ -172,14 +139,15 @@ which is backward from the usual orientation of subtyping.
           {Θ;Γ ⊢ (V_1, \dots, V_n) : (T_1, \dots T_n)}
           \vdbl
 \myference{Tproj1}
-          {}
-          {Θ;Γ ⊢ \FST : ((d_1 × d_2)@\nonempty{p} → d_1@\nonempty{p})@Θ}
+          {\nonempty{p} \subseteq Θ}
+          {Θ;Γ ⊢ \FST{\nonempty{p}} : ((d_1 × d_2)@\nonempty{p} → d_1@\nonempty{p})@\nonempty{p}}
           \quad
 \myference{Tproj2}{\dots}{\dots}
           \vdbl
 \myference{TprojN}
-          {}
-          {Θ;Γ ⊢ \LOOKUP_i : ((T_1, \dots, T_i, \dots, T_n) → T_i)@Θ}
+          {\nonempty{p} \subseteq Θ \quad
+           (T_1, \dots, T_n) ⊳ \nonempty{p} = (T_1, \dots, T_n)}
+          {Θ;Γ ⊢ \LOOKUP{i}{\nonempty{p}} : ((T_1, \dots, T_i, \dots, T_n) → T_i)@\nonempty{p}}
           \vdbl
 \myference{Tinl}
           {Θ;Γ ⊢ V : d@\nonempty{p}}
@@ -190,7 +158,7 @@ which is backward from the usual orientation of subtyping.
 
 
 
-
+\pagebreak
 ### Centralized semantics
 
 I think we don't actually need the out-of-order business chor-lambda does,
@@ -201,14 +169,50 @@ In other words, I think the central semantics should deviate from normal lambda-
 as little as possible, if at all.
 And then we'll see if we can still prove deadlock freedom.
 
+To provide exact type preservation, and to not simply erase all location data during evaluation,
+we need to extend the masking operator to values.
+
+\begin{align*}
+(λ x:T \DOT M)@\nonempty{p} ⊳ Θ \DEF & \begin{cases}
+                                  (λ x:T \DOT M)@\nonempty{p} & \nonempty{p} \subseteq Θ \\
+                                  \text{undefined} & \text{otherwise}
+                                  \end{cases}
+                                  \quad &
+()@\nonempty{p} ⊳ Θ \DEF & \begin{cases}
+                      ()@(\nonempty{p} ∩ Θ) & \nonempty{p} ∩ Θ ≠ ∅ \\
+                      \text{undefined} & \text{otherwise}
+                      \end{cases}
+                      \vdbl
+\INL V ⊳ Θ \DEF & \INL (V ⊳ Θ)  \quad &
+\INR V ⊳ Θ \DEF & \INR (V ⊳ Θ)  \vdbl
+\PAIR V_1 V_2 ⊳ Θ \DEF & \PAIR (V_2 ⊳ Θ) (V_2 ⊳ Θ)  \quad &
+(V_1, \dots, V_n) ⊳ Θ \DEF & (V_1 ⊳ Θ, \dots, V_n ⊳ Θ)  \vdbl
+\FST{\nonempty{p}} ⊳ Θ \DEF & \begin{cases}
+                                  \FST{\nonempty{p}} & \nonempty{p} \subseteq Θ \\
+                                  \text{undefined} & \text{otherwise}
+                                  \end{cases}  \quad &
+\SND{\nonempty{p}} ⊳ Θ \DEF & \dots  \vdbl
+\LOOKUP{n}{\nonempty{p}} ⊳ Θ \DEF & \begin{cases}
+                                  \LOOKUP{n}{\nonempty{p}} & \nonempty{p} \subseteq Θ \\
+                                  \text{undefined} & \text{otherwise}
+                                  \end{cases}
+                                  \quad &
+\COMM{s}{\nonempty{r}} ⊳ Θ \DEF & \begin{cases}
+                            \COMM{s}{\nonempty{r}} & (s,\nonempty{r}) \subseteq Θ \\
+                            \text{undefined} & \text{otherwise}
+                            \end{cases}
+                            \vdbl
+x ⊳ Θ \DEF & x
+\end{align*}
+
 \begin{gather*}
 \myference{AppAbs}
-          {}
-          {(λ x:T \DOT M) V \step M[x := V]}
+          {V' = V ⊳ \nonempty{p}}
+          {((λ x:T \DOT M)@\nonempty{p}) V \step M[x := V']}
           \vdbl
 \myference{App1}
           {N \step N'}
-          {(λ x:T \DOT M) N \step (λ x:T \DOT M) N'}
+          {((λ x:T \DOT M)\nonempty{p}) N \step ((λ x:T \DOT M)\nonempty{p}) N'}
           \quad
 \myference{App2}
           {M \step M'}
@@ -219,7 +223,7 @@ And then we'll see if we can still prove deadlock freedom.
           {\CASE{N}{x_l}{M_l}{x_r}{M_r} \step \CASE{N'}{x_l}{M_l}{x_r}{M_r}}
           \vdbl
 \myference{CaseL}
-          {}
+          {\text{I don't think we need a $V'$?}}
           {\CASE{\INL V}{x_l}{M_l}{x_r}{M_r} \step M_l[x_l := V]}
           \quad
 \myference{CaseR}
@@ -227,36 +231,32 @@ And then we'll see if we can still prove deadlock freedom.
           {\dots}
           \vdbl
 \myference{Proj1}
-          {}
-          {\FST (\PAIR V_1 V_2) \step V_1}
+          {V' = V_1 ⊳ \nonempty{p}}
+          {\FST{\nonempty{p}} (\PAIR V_1 V_2) \step V'}
           \quad
 \myference{Proj2}
           {\dots}
           {\dots}
           \quad
 \myference{ProjN}
-          {}
-          {\LOOKUP_i (V_1, \dots, V_i, \dots, V_n) \step V_i}
+          {V' = V_i ⊳ \nonempty{p}}
+          {\LOOKUP{i}{\nonempty{p}} (V_1, \dots, V_i, \dots, V_n) \step V'}
           \vdbl
 \myference{Com1}
-          {}
-          {\COMM{\nonempty{r}} () \step ()}
+          {()@\nonempty{p} ⊳ \{s\} = ()@s}
+          {\COMM{s}{\nonempty{r}} ()@\nonempty{p} \step ()\nonempty{r}}
           \quad
 \myference{ComPair}
-          {\COMM{\nonempty{r}} V_1 \step V_1 \quad \COMM{\nonempty{r}} V_2 \step V_2}
-          {\COMM{\nonempty{r}} (\PAIR V_1 V_2) \step \PAIR V_1 V_2}
+          {\COMM{s}{\nonempty{r}} V_1 \step V_1' \quad \COMM{s}{\nonempty{r}} V_2 \step V_2'}
+          {\COMM{s}{\nonempty{r}} (\PAIR V_1 V_2) \step \PAIR V_1' V_2'}
           \vdbl
 \myference{ComInl}
-          {\COMM{\nonempty{r}} V \step V}
-          {\COMM{\nonempty{r}} (\INL V) \step \INL V}
+          {\COMM{s}{\nonempty{r}} V \step V'}
+          {\COMM{s}{\nonempty{r}} (\INL V) \step \INL V'}
           \quad
 \myference{ComInr}
           {\dots}
           {\dots}
-          \vdbl
-\myference{Erasure}
-          {}
-          {M : T \step M}
 \end{gather*}
 
 
@@ -266,7 +266,7 @@ And then we'll see if we can still prove deadlock freedom.
 > or their exists $M'$ s.t. $M \step M'$.
 
 **Proof**: By induction of typing rules.  
-There are eleven base cases and three recursive cases.  
+There are eleven base cases and two recursive cases.  
 Base cases:
 
 - \textsc{Tlambda}
@@ -281,9 +281,8 @@ Base cases:
 - \textsc{Tinl}
 - \textsc{Tinr}
 
-Recursive cases:
+Recursive cases:  #TODO: pick up here!
 
-- \textsc{Ttyped}: $M$ is of form $M' : T$, and steps by \textsc{Erasure}.
 - \textsc{Tcase}: $M$ is of form $\CASE{N}{x_l}{M_l}{x_r}{M_r}$
   and ${Θ;∅ ⊢ N : (d_l + d_r)@\nonempty{p}}$.
   By induction, either $N$ can step, in which case M can step by \textsc{Case},

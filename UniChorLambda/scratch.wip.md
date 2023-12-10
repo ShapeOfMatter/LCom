@@ -108,32 +108,9 @@ which is backward from the usual orientation of subtyping.
 \myference{}
           {d ≡ d'}
           {d ⊑ d'}
-          \quad
-\myference{}
-          {\nonempty{p} \supseteq \nonempty{q} \quad
-           R ⊑ R' \quad
-           A ⊒ A'}
-          {A →_\nonempty{p} R ⊑ A' →_\nonempty{q} R'}
-          \vdbl
-\myference{}
-          {t ⊑ t' \quad
-           \nonempty{p} \subseteq \nonempty{q}}
-          {t@\nonempty{p} ⊑ t'@\nonempty{q}}
-          \quad
-\myference{}
-          {T_1 ⊑ T'_1 \quad \dots \quad T_n ⊑ T'_n}
-          {(T_1, \dots, T_n) ⊑ (T'_1, \dots, T'_n)}
 \end{gather*}
 
 \begin{gather*}
-\myference{Tsubtype}
-          {Θ;Γ ⊢ M : T' \quad T ⊑ T'}
-          {Θ;Γ ⊢ M : T}
-          \quad
-\myference{Ttyped}
-          {Θ;Γ ⊢ M : T}
-          {Θ;Γ ⊢ (M : T) : T}
-          \vdbl
 \myference{Tlambda}
           {Θ';Γ,(x:T) ⊢ M : T' \quad \owners(T) \subseteq Θ' \subseteq Θ}
           {Θ;Γ ⊢ (λ x:T \DOT M) : (T →_{Θ'} T')@Θ}
@@ -186,6 +163,10 @@ which is backward from the usual orientation of subtyping.
           {Θ;Γ ⊢ \INL V : (d + d')@\nonempty{p}}
           \quad
 \myference{Tinr}{\dots}{\dots}
+          \vdbl
+\myference{Ttyped}
+          {Θ;Γ ⊢ M : T' \quad T = \id_{owners(T)}(T')}
+          {Θ;Γ ⊢ (M : T) : T}
 \end{gather*}
 
 
