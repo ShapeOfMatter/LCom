@@ -244,7 +244,7 @@ x ⊳ Θ \DEF & x
           \vdbl
 \myference{Com1}
           {()@\nonempty{p} ⊳ \{s\} = ()@s}
-          {\COMM{s}{\nonempty{r}} ()@\nonempty{p} \step ()\nonempty{r}}
+          {\COMM{s}{\nonempty{r}} ()@\nonempty{p} \step ()@\nonempty{r}}
           \quad
 \myference{ComPair}
           {\COMM{s}{\nonempty{r}} V_1 \step V_1' \quad \COMM{s}{\nonempty{r}} V_2 \step V_2'}
@@ -260,6 +260,40 @@ x ⊳ Θ \DEF & x
 \end{gather*}
 
 
+> **Lemma "Sub-Mask"**:
+> If $Θ;Γ ⊢ V : d@\nonempty{p}$ and $∅ ≠ \nonempty{q} \subseteq \nonempty{p}$,
+> then **A:** $d@\nonempty{p} ⊳ \nonempty{q} = d@\nonempty{q}$ is defined
+> and **B:** $V ⊳ \nonempty{q}$ is also defined and types as $d@\nonempty{q}$.
+
+**Proof**: Part A is obvious.
+Part B follows by induction on the definition of masking for values.
+
+- Lambda: Base case; can't happen because it wouldn't allow a data type.
+- Unit: Base case; passes definition and typing.
+- Injection L/R: Recursive cases.
+- Pair: Recursive case.
+- Vector: Base case, can't happen because it wouldn't allow a data type.
+- Fst, Snd, Lookup, and Com: Base cases, can't happen because they wouldn't allow a data type.
+
+TODO: lock down the recursive cases above better.
+
+> **Lemma "Maskable"**:
+> If $Θ;Γ ⊢ V : T$ and $T ⊳ \nonempty{p} = T'$,
+> then **A:** $V ⊳ \nonempty{p} = V'$ is defined
+> and **B:** $Θ;Γ ⊢ V' : T'$.
+
+**Proof**:
+By induction on the definition of masking for values.
+
+- Lambda: Base case. From the typing assumption, $\nonempty{p}$ is a superset of the owners,
+  so $T' = T$ and $V' = V$.
+- Unit: Base case; passes definition and typing.
+- Injection L/R: Recursive cases.
+- Pair: Recursive case.
+- Vector: Recursive case.
+- Fst, Snd, Lookup, and Com:
+  From the typing assumption, $\nonempty{p}$ is a superset of the owners,
+  so $T' = T$ and $V' = V$.
 
 > **Theorem "Progress":**
 > If $Θ;∅ ⊢ M : T$, then either M is of form $V$ (which cannot step)
@@ -281,7 +315,7 @@ Base cases:
 - \textsc{Tinl}
 - \textsc{Tinr}
 
-Recursive cases:  #TODO: pick up here!
+Recursive cases:
 
 - \textsc{Tcase}: $M$ is of form $\CASE{N}{x_l}{M_l}{x_r}{M_r}$
   and ${Θ;∅ ⊢ N : (d_l + d_r)@\nonempty{p}}$.
@@ -299,66 +333,62 @@ Recursive cases:  #TODO: pick up here!
   Ignoring the impossible \textsc{Tvar} cases,
   there are five ways an $F$ of form $V$ could type as a function;
   in each case we get to make some assumption about the type of $A$.
-  - \textsc{TprojN}: $A$ must be a value of type $(T_1,\dots,T_n)$ (with $i ≤ n$),
-    and must type by \textsc{Tvec}, so it must have from $(V_1,\dots,V_n)$,
-    so $M$ can step by \textsc{ProjN}.
   - \textsc{Tproj1}: $A$ must be a value of type $(d_1×d_2)@\nonempty{p}$,
-    and must type by \textsc{Tpair}, so it must have form $\PAIR V_1 V_2$,
-    so $M$ can step by \textsc{Proj1}.
+    and must type by \textsc{Tpair}, so it must have form $\PAIR V_1 V_2$
+    where $Θ;∅ ⊢ V_1 : d_1@\nonempty{p1}$
+    and $Θ;∅ ⊢ V_2 : d_1@\nonempty{p2}$
+    and $\nonempty{p} = \nonempty{p_1} ∩ \nonempty{p_2} ≠ ∅$.
+    so $M$ must step by \textsc{Proj1}.
+    This is possible by Lemma "Sub-Mask".
   - \textsc{Tproj2}: (same as \textsc{Tproj1})
+  - \textsc{TprojN}: $A$ must be a value of type $(T_1,\dots,T_n)$ with $i ≤ n$
+    and must type by \textsc{Tvec}, so it must have from $(V_1,\dots,V_n)$,
+    and (by unpacking one layer of $⊳$) $T_i ⊳ \nonempty{p} = T_i$.
+    $M$ must step by \textsc{ProjN}.
+    By Lemma Maskable, it can.
   - \textsc{Tcom}: $A$ must be a value of type $d@s$.
     This is possible under \textsc{Tunit}, \textsc{Tpair}, \textsc{Tinl}, or \textsc{Tinr},
     which respectively force forms $()$, $\PAIR V_1 V_2$, $\INL V$, and $\INR V$,
-    which respectively allow $M$ to reduce by
+    which respectively require that $M$ reduce by
     \textsc{Com1}, \textsc{ComPair}, \textsc{ComInl}, and \textsc{ComInr}.
-  - \textsc{Tlambda}: $M$ can reduce by \textsc{AppAbs}.
+    In the case of $()$, this follows from Lemma Sub-Mask, since $\{s\} \subseteq \{s\}$;
+    the other three are recursive.
+  - \textsc{Tlambda}: $M$ must reduce by \textsc{AppAbs}.
+    By the assumption of \textsc{Tapp} and Lemma Maskable, it can.
 
 
-> **Lemma "Substitution":**
-> If $Θ;(x:T_x),Γ ⊢ M : T$ and $Θ;Γ ⊢ V : T_x$,
-> then $Θ;Γ ⊢ M[x := V] : T$.
-
-**Proof**: By induction of typing rules.  
-TODO: 14 cases.
-
-> **Lemma "Bystanders":**
-> If $Θ;Γ ⊢ M : T$,
-> then $Θ∪Θ';Γ ⊢ M : T'$
-> and $T = \id_Θ(T')$.
-
-**Proof**: By induction of typing rules.  
-TODO: 14 cases.
 
 
 
 > **Theorem "Preservation":**
 > If $Θ;Γ ⊢ M : T$ and $M \step M'$,
-> then $Θ;Γ ⊢ M' : T'$
-> and $T = \id_{owners(T)}(T')$.
+> then $Θ;Γ ⊢ M' : T$.
 
 **Proof**: By induction on typing rules.
 The same eleven base cases fail the assumption that $M$ can step,
 so we consider the recursive cases:
 
-- \textsc{Ttyped}: $M$ is of form $M' : T$, and steps by \textsc{Erasure} to $M$.
-  The structure of \textsc{Ttyped} already tells us that $Θ;Γ ⊢ M' : T'$
-  and $T = \id_{owners(T)}(T')$.
 - \textsc{Tcase}: $M$ is of form $\CASE{N}{x_l}{M_l}{x_r}{M_r}$.
   There are three ways it might step:
   - \textsc{CaseL}: $N$ is of form $\INL V$ and $M' = M_l[x_l := V]$.
+    TODO: fix this.
     From \textsc{Tcase} and **Bystanders** we have that $Θ;Γ,(x_l:d_l@\nonempty{p}) ⊢ M_l : T$.
     From \textsc{Tcase} and \textsc{Tinl} we have that $Θ;Γ⊢V:d@\nonempty{p}$.
     Therefore by **Substitution** $Θ;Γ⊢ M_l[x_l := V] : T$.
     (Apply **ID Mask**, QED.)
   - \textsc{CaseR}: Same as \textsc{CaseL}.
   - \textsc{Case}: $N \step N'$, and by induction and \textsc{Tcase},
-    ${Θ;Γ⊢ N' : (d_l + d_r)@\nonempty{q}}$
-    where $\nonempty{p} = \id_{\nonempty{p}}(\nonempty{q})$.
-    TODO: This is the same as $\nonempty{p} \subseteq \nonempty{q}$.
-    ...  
-    TODO: Finish this. I think the theorem might not actually be airtight.
-    What we're really doing here is erasing location information,
-    without which we really should have type preservation.
-    But we don't have the machienery on hand to do that explicitly, do we?
-    And is it even really what we want?
-    Might it be better to augment the typing rules with _implicit_ subtyping?
+    ${Θ;Γ⊢ N' : (d_l + d_r)@\nonempty{p}}$,
+    so the original typing judgment will still apply.
+- \textsc{Tapp}: $M$ is of form $F A$, and $F$ is of a function type and $A$ also types
+  (both in the same empty $Γ$).
+  if the step is by \textsc{App2}or \textsc{App1}, then recursion is easy.
+  There are eight other ways the step could happen:
+  - \textsc{AppAbs}: 
+  - \textsc{Proj1}: 
+  - \textsc{Proj2}: 
+  - \textsc{ProjN}: 
+  - \textsc{Com1}: By \textsc{TCom} and \textsc{Unit}.
+  - \textsc{ComPair}: Recusion among the \textsc{Com*} cases.
+  - \textsc{ComInl}:  Recusion among the \textsc{Com*} cases.
+  - \textsc{ComInr}:  Recusion among the \textsc{Com*} cases.
