@@ -23,7 +23,7 @@ geometry:
 \newcommand{\langword}[1]{\operatorname{\mathsf{#1}}}
 \newcommand{\INL}{\langword{Inl}}
 \newcommand{\INR}{\langword{Inr}}
-\newcommand{\CASE}[5]{\langword{case}#1\langword{of}\INL #2 ⇒ #3 ; \INR #4 ⇒ #5}
+\newcommand{\CASE}[6]{\langword{case}_{#1}#2\langword{of}\INL #3 ⇒ #4 ; \INR #5 ⇒ #6}
 \newcommand{\DOT}{\langword{.}}
 \newcommand{\FST}[1]{\langword{fst}_{#1}}
 \newcommand{\SND}[1]{\langword{snd}_{#1}}
@@ -36,7 +36,8 @@ geometry:
 \newcommand{\owners}{\mathtt{owners}}
 \newcommand{\roles}{\mathtt{roles}}
 \newcommand{\mask}{⊳}
-\newcommand{\idempotent}[2]{\mathtt{idempotent}^{\mask #1}\!\!(#2)}
+\newcommand{\noop}[2]{\mathtt{noop}^{\mask #1}\!\!(#2)}
+\newcommand{\fresh}[1]{\mathtt{fresh}(#1)}
 
 \newcommand{\step}{\operatorname{\longrightarrow}}
 \newcommand{\myference}[3]{\inference[\textsc{#1}]{#2}{#3}}
@@ -46,7 +47,7 @@ geometry:
 \begin{align*}
 M  \BNF   &  V                       && \text{values}          \\
    \BNFOR &  M M                     && \text{function application}          \\
-   \BNFOR &  \CASE{M}{x}{M}{x}{M}    \quad&& \text{branch on sum cases}          \\
+   \BNFOR &  \CASE{\nonempty{p}}{M}{x}{M}{x}{M}    \quad&& \text{branch on sum cases}          \\
                                             \\
 V  \BNF   &  x                       && \text{variables}          \\
    \BNFOR &  (λ x:T \DOT M)@\nonempty{p}            && \text{function literals annotated with participants}          \\
@@ -77,6 +78,9 @@ Note the use of a super-script "+" to denote sets/lists of parties instead of a 
 this is because it's important that these lists never be empty.
 The type and semantic rules will enforce this as an invariant.
 
+From here on we will assume that bound variables are unique.
+It'd be nice to drop this assumption.
+I've tried to make it somewhat explicit in the typing rules.
 
 \pagebreak
 ## Masking
@@ -159,15 +163,17 @@ we need to extend the masking operator to values.
 > then **A:** $d@\nonempty{p} \mask \nonempty{q} = d@\nonempty{q}$ is defined
 > and **B:** $V \mask \nonempty{q}$ is also defined and types as $d@\nonempty{q}$.
 
-**Proof**: Part A is obvious.
+**Proof**: Part A is obvious by \textsc{MTdata}.
 Part B follows by induction on the definition of masking for values.
 
-- Lambda: Base case; can't happen because it wouldn't allow a data type.
-- Unit: Base case; passes definition and typing.
-- Injection L/R: Recursive cases.
-- Pair: Recursive case.
-- Vector: Base case, can't happen because it wouldn't allow a data type.
-- Fst, Snd, Lookup, and Com: Base cases, can't happen because they wouldn't allow a data type.
+- \textsc{MVlambda}: Base case; can't happen because it wouldn't allow a data type.
+- \textsc{MVunit}: Base case; passes definition and typing.
+- \textsc{MVinL}, \textsc{MVinR}: Recursive cases.
+- \textsc{MVpair}: Recursive case.
+- \textsc{MVvector}: Can't happen because it wouldn't allow a data type.
+- \textsc{MVproj1}, \textsc{MVproj2}, \textsc{MVprojN}, and \textsc{MVcom}:
+  Base cases, can't happen because they wouldn't allow a data type.
+- \textsc{MVvar}: Base case, trivial.
 
 TODO: lock down the recursive cases above better?
 
@@ -180,30 +186,71 @@ TODO: lock down the recursive cases above better?
 **Proof**:
 By induction on the definition of masking for values.
 
-- Lambda: Base case. From the type-masking assumption, $\nonempty{p}$ is a superset of the owners,
+- \textsc{MVlambda}: Base case. From the type-masking assumption, \textsc{MTfunction},
+  $\nonempty{p}$ is a superset of the owners,
   so $T' = T$, so $V' = V$.
-- Unit: Base case; passes definition and typing.
-- Injection L/R: Recursive cases.
-- Pair: Recursive case.
-- Vector: Recursive case.
-- Fst, Snd, Lookup, and Com:
+- \textsc{MVunit}: Base case; passes definition and typing.
+- \textsc{MVinL}, \textsc{MVinR}: Recursive cases.
+- \textsc{MVpair}: Recursive case.
+- \textsc{MVvector}: Recursive case.
+- \textsc{MVproj1}, \textsc{MVproj2}, \textsc{MVprojN}, and \textsc{MVcom}:
   From the typing assumption, $\nonempty{p}$ is a superset of the owners,
   so $T' = T$ and $V' = V$.
+- \textsc{MVvar}: Base case, trivial.
+
+
+### Lemma "Enclave"
+
+> If $Θ;Γ ⊢ V : T$ and $Θ' \subseteq Θ$
+> and $T' = T \mask Θ'$ is defined
+> then $V' = V \mask Θ'$ is defined,
+> and $Θ';Γ ⊢ V' : T'$.
+
+**Proof**:
+This is vacuous if $T'$ doesn't exist, so assume it does.
+Do induction on the definition of masking for $T$:
+
+- \textsc{MTdata}: $Θ;Γ ⊢ V : d@\nonempty{p}$ and $\nonempty{p} ∩ Θ' ≠ ∅$
+  so $T' = d@(\nonempty{p} ∩ Θ')$.
+  Consider cases for typing of $V$:
+  - \textsc{Tvar}: $V' = V$ by \textsc{MVvar} and it types by \textsc{Tvar} b.c. $T'$ exists.
+  - \textsc{Tunit}: We've already assumed the preconditions for \textsc{MVunit}, and it types.
+  - \textsc{Tpair}: $V = \PAIR V_1 V_2$,
+    and $Θ;Γ ⊢ V_1 : d_1@(\nonempty{p_1} \supseteq \nonempty{p})$
+    and $Θ;Γ ⊢ V_2 : d_2@(\nonempty{p_2} \supseteq \nonempty{p})$.
+    By \textsc{MTdata}, these larger-owernership types will still mask with $Θ'$,
+    so this case come by induction.
+  - \textsc{TinL}, \textsc{TinR}: Follows by simple induction.
+- \textsc{MTFunction}: $T' = T$ and $\nonempty{p} \subseteq Θ'$,
+  so lambdas and function-keywords all project unchanged, and the respective typings hold.
+- \textsc{MTVector}: Simple induction.
+
+
+### Lemma "Quorum"
+
+> **A)** If $Θ;Γ,(x:T_x) ⊢ M : T$ and $T_x' = T_x \mask Θ$, then $Θ;Γ,(x:T_x') ⊢ M : T$.  
+> **B)** If $Θ;Γ,(x:T_x) ⊢ M : T$ and $T_x \mask Θ$ is not defined, then $Θ;Γ ⊢ M : T$.
+
+**Proof**: By induction on the typing of M.
+The only case that's not recursive or trivial is \textsc{TVar},
+for which we just need to observe that masking on a given party-set is idempotent.
+
 
 
 \pagebreak
 ## Typing
 
 The typing rules \textsc{Tlambda} and \textsc{TprojN} highlight their particular case of masking
-by using $\idempotent{\nonempty{p}}{T}$ to stand for the predicate $T = T \mask \nonempty{p}$.
+by using $\noop{\nonempty{p}}{T}$ to stand for the predicate $T = T \mask \nonempty{p}$.
 Possibly these rules are actually too strict, IDK.
 
 \begin{gather*}
 \myference{Tlambda}
           {\nonempty{p};Γ,(x:T) ⊢ M : T' \quad
            \nonempty{p} \subseteq Θ \quad
-           \idempotent{\nonempty{p}}{T}}
-          {Θ;Γ ⊢ (λ x:t \dot m)@\nonempty{p} : (T → T')@\nonempty{p}}
+           \noop{\nonempty{p}}{T} \quad
+           \fresh{x}}
+          {Θ;Γ ⊢ (λ x:T \DOT M)@\nonempty{p} : (T → T')@\nonempty{p}}
           \vdbl
 \myference{Tvar}
           {x : T \in Γ \quad T' = T \mask Θ}
@@ -216,10 +263,12 @@ Possibly these rules are actually too strict, IDK.
           {Θ;Γ ⊢ M N : T_r}
           \vdbl
 \myference{Tcase}
-          {Θ;Γ ⊢ N : (d_l + d_r)@\nonempty{p} \quad
+          {Θ;Γ ⊢ N : T_N \quad
+           (d_l + d_r)@\nonempty{p} = T_N \mask \nonempty{p} \quad
            \nonempty{p};Γ,(x_l:d_l@\nonempty{p}) ⊢ M_l : T \quad
-           \nonempty{p};Γ,(x_r:d_r@\nonempty{p}) ⊢ M_r : T}
-          {Θ;Γ ⊢ \CASE{N}{x_l}{M_l}{x_r}{M_r} : T}
+           \nonempty{p};Γ,(x_r:d_r@\nonempty{p}) ⊢ M_r : T \quad
+           \fresh{x_l, x_r}}
+          {Θ;Γ ⊢ \CASE{\nonempty{p}}{N}{x_l}{M_l}{x_r}{M_r} : T}
           \vdbl
 \myference{Tunit}
           {\nonempty{p} \subseteq Θ}
@@ -247,7 +296,7 @@ Possibly these rules are actually too strict, IDK.
           \vdbl
 \myference{TprojN}
           {\nonempty{p} \subseteq Θ \quad
-           \idempotent{\nonempty{p}}{(T_1, \dots, T_n)}}
+           \noop{\nonempty{p}}{(T_1, \dots, T_n)}}
           {Θ;Γ ⊢ \LOOKUP{i}{\nonempty{p}} : ((T_1, \dots, T_i, \dots, T_n) → T_i)@\nonempty{p}}
           \vdbl
 \myference{Tinl}
@@ -257,6 +306,140 @@ Possibly these rules are actually too strict, IDK.
 \myference{Tinr}{\dots}{\dots}
 \end{gather*}
 
+
+### Lemma "Exclave"
+
+> If $Θ;∅ ⊢ M : T$ and $Θ \subseteq Θ'$
+> then $Θ';∅ ⊢ M : T$.
+
+**Proof**:
+By induction on the typing of $M$.
+
+- \textsc{Tlambda}: The recursive typing is unaffected,
+  and the other tests are fine with a larger set.
+- \textsc{Tvar}: Can't apply with an empty type context.
+- All other cases are unaffected by the larger party-set.
+
+
+\pagebreak
+## Substitution
+
+In the interest of getting exact type preservation,
+I'm defining a more discerning than usual substitution process.
+TODO: these rules can't fail, so reorganize this
+to not be in the format of inference rules.
+There are non-shadowing cases where substitution is forced to a no-op;
+I think the Lemma "Substitution" suffices to show that that's ok.
+
+\begin{gather*}
+\myference{Svar0}
+          {y ≢ x}
+          {y[x := V] \DEF y}
+          \quad
+\myference{Svar1}
+          {y ≡ x}
+          {y[x := V] \DEF V}
+          \quad
+\myference{Sapp}
+          {M' = M[x:=V] \quad N' = N[x:=V]}
+          {(M N)[x:=V] \DEF M' N'}
+          \vdbl
+\myference{Slambda}
+          {M' = {\begin{cases}
+                M[x:=V'] & V' = V \mask \nonempty{p} \\
+                M & \text{otherwise}
+                \end{cases}}}
+          {((λ y:T \DOT M)@\nonempty{p})[x:=V] \DEF (λ y:T \DOT M')@\nonempty{p}}
+          \vdbl
+\myference{Scase}
+          {M' = M[x:=V] \quad
+           M_l', M_r' = {\begin{cases}
+                         M_l[x:=V'],M_r[x:=V'] & V' = V \mask \nonempty{p} \\
+                         M_l,M_r & \text{otherwise}
+                         \end{cases}}}
+          {(\CASE{\nonempty{p}}{M}{x_l}{M_l}{x_r}{M_r})[x:=V] \DEF
+            \CASE{\nonempty{p}}{M'}{x_l}{M_l'}{x_r}{M_r'})}
+          \vdbl
+\myference{SinL}
+          {V_1' = V_1[x:=V]}
+          {(\INL V_1)[x:=V] \DEF \INL V_1'}
+          \quad
+\myference{SinR}
+          {V_1' = V_1[x:=V]}
+          {(\INR V_1)[x:=V] \DEF \INR V_1'}
+          \vdbl
+\myference{Spair}
+          {V_1' = V_1[x:=V] \quad V_2' = V_2[x:=V]}
+          {(\PAIR V_1 V_2)[x:=V] \DEF \PAIR V_1' V_2'}
+          \quad
+\myference{Svec}
+          {V_1' = V_1[x:=V] \quad \dots \quad V_n' = V_n[x:=V]}
+          {(V_1, \dots, V_n)[x:=V] \DEF (V_1', \dots, V_n')}
+          \vdbl
+\myference{Sunit}
+          {}
+          {(()@\nonempty{p})[x:=V] \DEF ()@\nonempty{p}}
+          \quad
+\myference{Sproj1}
+          {}
+          {(\FST{\nonempty{p}})[x:=V] \DEF \FST{\nonempty{p}}}
+          \quad
+\myference{Sproj2}
+          {}
+          {(\SND{\nonempty{p}})[x:=V] \DEF \SND{\nonempty{p}}}
+          \vdbl
+\myference{SprojN}
+          {}
+          {(\LOOKUP{\nonempty{p}}{i})[x:=V] \DEF \LOOKUP{\nonempty{p}}{i}}
+          \quad
+\myference{Scom}
+          {}
+          {(\COMM{s}{\nonempty{r}})[x:=V] \DEF \COMM{s}{\nonempty{r}}}
+\end{gather*}
+
+### Lemma "Unused"
+
+> If $Θ;Γ ⊢ M : T$ and $x \not \in Γ$, then $M[x := V] = M$.
+
+**Proof**:
+By induction on the typing of $M$.
+There are no non-trivial cases.
+
+### Lemma "Substitution"
+
+> If $Θ;Γ,(x:T_x) ⊢ M : T$ and $Θ;Γ ⊢ V : T_x$,
+> then $Θ;Γ ⊢ M[x := V] : T$.
+
+**Proof**: Induction on the typing rules for $M$.
+There are 13 cases.
+\textsc{TprojN}, \textsc{Tproj1}, \textsc{Tproj2}, \textsc{Tcom}, and \textsc{Tunit}
+are trivial base cases.
+\textsc{TinL}, \textsc{TinR}, , \textsc{Tvec}, and \textsc{Tpair}
+are trivial recursive cases.
+
+- \textsc{Tlambda} where $T_x' = T_x \mask \nonempty{p}$:
+  $M = (λ y : T_y \DOT N)@\nonempty{p}$ and $T = (T_y → T')@\nonempty{p}$.
+  1. $Θ;Γ,(x:T_x) ⊢ (λ y : T_y \DOT N)@\nonempty{p} : (T_y → T')@\nonempty{p}$ by assumption.
+  2. $Θ;Γ ⊢ V : T_x$ by assumption.
+  3. $\nonempty{p};Γ,(x:T_x),(y:T_y) ⊢ N : T'$ per preconditions of \textsc{Tlambda}.
+  4. $Θ;Γ,(y:T_y) ⊢ V : T_x$ by weakening (or strengthening?) #2.
+  5. $V' = V \mask \nonempty{p}$ and $\nonempty{p}; Γ,(y:T_y) ⊢ V' : T_x'$ by Lemma "Enclave".
+  6. $\nonempty{p};Γ,(x:T_x'),(y:T_y) ⊢ N : T'$ by applying Lemma "Quorum" to #3.
+  7. $\nonempty{p};Γ,(y:T_y) ⊢ N[x:=V'] : T'$ by induction on #6 and #5.
+  8. $M[x:=V] = (λ y : T_y \DOT N[x:=V'])@\nonempty{p}$ by \textsc{Slambda},
+     which typechecks by #7 and \textsc{Tlambda}. _QED._
+- \textsc{Tlambda} where $T_x \mask \nonempty{p}$ is undefined:
+  $M = (λ y : T_y \DOT N)@\nonempty{p}$.
+  1. $\nonempty{p};Γ,(x:T_x),(y:T_y) ⊢ N : T'$ per preconditions of \textsc{Tlambda}.
+  2. $\nonempty{p};Γ,(y:T_y) ⊢ N : T'$ by Lemma "Quorum" B.
+  3. $N[x:=V] = N$ by Lemma "Unused",
+     so regardless of the existence of $V \mask \nonempty{p}$ the substitution is a noop,
+     and it typechecks by #2 and \textsc{Tlambda}.
+- \textsc{Tvar}: Follows from the relevant definitions, whether $x ≡ y$ or not.
+- \textsc{Tapp}: This is also a simple recursive case;
+  the masking of $T_a$ doesn't affect anything.
+- \textsc{Tcase}: Follows the same logic as \textsc{Tlambda},
+  just duplicated for $M_l$ and $M_r$.
 
 
 
@@ -274,8 +457,9 @@ And then we'll see if we can still prove deadlock freedom.
 
 \begin{gather*}
 \myference{AppAbs}
-          {V' = V \mask \nonempty{p}}
-          {((λ x:T \DOT M)@\nonempty{p}) V \step M[x := V']}
+          {V' = V \mask \nonempty{p} \quad
+           M' = M[x := V']}
+          {((λ x:T \DOT M)@\nonempty{p}) V \step M'}
           \vdbl
 \myference{App1}
           {N \step N'}
@@ -287,11 +471,12 @@ And then we'll see if we can still prove deadlock freedom.
           \vdbl
 \myference{Case}
           {N \step N'}
-          {\CASE{N}{x_l}{M_l}{x_r}{M_r} \step \CASE{N'}{x_l}{M_l}{x_r}{M_r}}
+          {\CASE{\nonempty{p}}{N}{x_l}{M_l}{x_r}{M_r} \step \CASE{\nonempty{p}}{N'}{x_l}{M_l}{x_r}{M_r}}
           \vdbl
 \myference{CaseL}
-          {\text{I don't think we need a $V'$?}}
-          {\CASE{\INL V}{x_l}{M_l}{x_r}{M_r} \step M_l[x_l := V]}
+          {V' = V \mask \nonempty{p} \quad
+           M_l' = M_l[x := V']}
+          {\CASE{\nonempty{p}}{\INL V}{x_l}{M_l}{x_r}{M_r} \step M_l'}
           \quad
 \myference{CaseR}
           {\dots}
@@ -350,7 +535,7 @@ Base cases:
 
 Recursive cases:
 
-- \textsc{Tcase}: $M$ is of form $\CASE{N}{x_l}{M_l}{x_r}{M_r}$
+- \textsc{Tcase}: $M$ is of form $\CASE{\nonempty{p}}{N}{x_l}{M_l}{x_r}{M_r}$
   and ${Θ;∅ ⊢ N : (d_l + d_r)@\nonempty{p}}$.
   By induction, either $N$ can step, in which case M can step by \textsc{Case},
   or $N$ is a value.
@@ -358,6 +543,8 @@ Recursive cases:
   \textsc{Tvar} (which isn't compatible with the assumed empty $Γ$),
   and \textsc{Tinl} and \textsc{Tinr}, which respectively force $N$ to have the required forms
   for $M$ to step by \textsc{CaseL} or \textsc{CaseR}.
+  From the typing rules, \textsc{MTdata}, and the first part of Lemma "Enclave",
+  the masking required by the step rules is possible.
 - \textsc{Tapp}: $M$ is of form $F A$, and $F$ is of a function type and $A$ also types
   (both in the same empty $Γ$).
   By induction, either $F$ can step (so $M$ can step by \textsc{App2}),
@@ -366,26 +553,24 @@ Recursive cases:
   Ignoring the impossible \textsc{Tvar} cases,
   there are five ways an $F$ of form $V$ could type as a function;
   in each case we get to make some assumption about the type of $A$.
-  - \textsc{Tproj1}: $A$ must be a value of type $(d_1×d_2)@\nonempty{p}$,
-    and must type by \textsc{Tpair}, so it must have form $\PAIR V_1 V_2$
-    where $Θ;∅ ⊢ V_1 : d_1@\nonempty{p1}$
-    and $Θ;∅ ⊢ V_2 : d_1@\nonempty{p2}$
-    and $\nonempty{p} = \nonempty{p_1} ∩ \nonempty{p_2} ≠ ∅$.
+  Furthermore, by \textsc{Tapp} and Lemma "Enclave",
+  we know that $A$ can mask to the owners of $F$.
+  - \textsc{Tproj1}: $A$ must be a value of type $(d_1×d_2)@\nonempty{q}$,
+    and must type by \textsc{Tpair}, so it must have form $\PAIR V_1 V_2$,
     so $M$ must step by \textsc{Proj1}.
-    This is possible by Lemma "Sub-Mask".
+    We know $V_1$ can mask by \textsc{MVpair}.
   - \textsc{Tproj2}: (same as \textsc{Tproj1})
   - \textsc{TprojN}: $A$ must be a value of type $(T_1,\dots,T_n)$ with $i ≤ n$
-    and must type by \textsc{Tvec}, so it must have from $(V_1,\dots,V_n)$,
-    and (by unpacking one layer of $\mask$) $T_i \mask \nonempty{p} = T_i$.
+    and must type by \textsc{Tvec}, so it must have from $(V_1,\dots,V_n)$.
     $M$ must step by \textsc{ProjN}.
-    By Lemma Maskable, it can.
+    We known $V_i$ can step by \textsc{MVvector}.
   - \textsc{Tcom}: $A$ must be a value of type $d@s$.
     This is possible under \textsc{Tunit}, \textsc{Tpair}, \textsc{Tinl}, or \textsc{Tinr},
     which respectively force forms $()$, $\PAIR V_1 V_2$, $\INL V$, and $\INR V$,
     which respectively require that $M$ reduce by
     \textsc{Com1}, \textsc{ComPair}, \textsc{ComInl}, and \textsc{ComInr}.
     In the case of $()$, this follows from Lemma Sub-Mask, since $\{s\} \subseteq \{s\}$;
-    the other three are recursive.
+    the other three are recursive among each other.
   - \textsc{Tlambda}: $M$ must reduce by \textsc{AppAbs}.
     By the assumption of \textsc{Tapp} and Lemma Maskable, it can.
 
@@ -395,29 +580,52 @@ Recursive cases:
 
 ### Theorem "Preservation"
 
-> If $Θ;Γ ⊢ M : T$ and $M \step M'$,
-> then $Θ;Γ ⊢ M' : T$.
+> If $Θ;∅ ⊢ M : T$ and $M \step M'$,
+> then $Θ;∅ ⊢ M' : T$.
 
-**Proof**: By induction on typing rules.
+**Proof**: By induction on typing rules for $M$.
 The same eleven base cases fail the assumption that $M$ can step,
 so we consider the recursive cases:
 
-- \textsc{Tcase}: $M$ is of form $\CASE{N}{x_l}{M_l}{x_r}{M_r}$.
+- \textsc{Tcase}: $M$ is of form $\CASE{\nonempty{p}}{N}{x_l}{M_l}{x_r}{M_r}$.
   There are three ways it might step:
-  - \textsc{CaseL}: $N$ is of form $\INL V$ and $M' = M_l[x_l := V]$.
-    **TODO: fix this.**
+  - \textsc{CaseL}: $N$ is of form $\INL V$, $V'$ exists, and $M' = M_l[x_l := V']$.
+    1. $\nonempty{p};(x_l:d_l@\nonempty{p}) ⊢ M_l : T$ by the preconditions of \textsc{Tcase}.
+    2. $Θ;∅ ⊢ V : d_l@\nonempty{p}$ because $N$ must type by \textsc{TinL}.
+    3. $\nonempty{p};∅ ⊢ V' : d_l@\nonempty{p}$ by Lemma "Enclave" and \textsc{MTdata}.
+       (Do I need to add a $\nonempty{p} \subseteq Θ$ to \textsc{Tcase}?)
+    4. $\nonempty{p};∅ ⊢ M_l[x_l := V'] : T$ by Lemma "Substitution".
+    5. $Θ;∅ ⊢ M_l[x_l := V'] : T$ by Lemma "Exclave". _QED._
   - \textsc{CaseR}: Same as \textsc{CaseL}.
   - \textsc{Case}: $N \step N'$, and by induction and \textsc{Tcase},
-    ${Θ;Γ⊢ N' : (d_l + d_r)@\nonempty{p}}$,
+    $Θ;Γ⊢ N' : T_N$,
     so the original typing judgment will still apply.
 - \textsc{Tapp}: $M$ is of form $F A$, and $F$ is of a function type and $A$ also types
-  (both in the same $Γ$).
+  (both in the empty typing context).
   If the step is by \textsc{App2}or \textsc{App1}, then recursion is easy.
   There are eight other ways the step could happen:
-  - \textsc{AppAbs}: 
-  - \textsc{Proj1}: 
-  - \textsc{Proj2}: 
-  - \textsc{ProjN}: 
+  - \textsc{AppAbs}: $F$ must type by \textsc{Tlambda}.
+    $M = ((λ x : T_x \DOT B)@\nonempty{p}) A$.
+    We need to show that $A' = A \mask \nonempty{p}$ exists and $Θ;∅ ⊢ B[x := A'] : T$.
+    1. $\nonempty{p};(x:T_x) ⊢ B : T$ by the preconditions of \textsc{Tlambda}.
+    2. $Θ;∅ ⊢ A : T_a'$ such that $T_x = T_a' \mask \nonempty{p}$,
+       by the preconditions of \textsc{Tapp}.
+    4. $A'$ exists and $\nonempty{p};∅ ⊢ A' : T_x$ by Lemma "Enclave" on #2.
+    5. $\nonempty{p};∅ ⊢ B[x := A'] : T$ by Lemma "Substitution".
+    6. _QED._ by Lemma "Exclave".
+  - \textsc{Proj1}: $F = \FST{\nonempty{p}}$ and $A = \PAIR V_1 V_2$ and
+    $M' = V_1 \mask \nonempty{p}$.
+    Necessarily, by \textsc{Tpair} $Θ;∅ ⊢ V_1 : d_1@\nonempty{p_1}$
+    where $\nonempty{p} \subseteq \nonempty{p_1}$.
+    By Lemma "Sub-mask", $Θ;∅ ⊢ M' : T$.
+  - \textsc{Proj2}: same as \textsc{Proj1}.
+  - \textsc{ProjN}: $F = \LOOKUP{i}{\nonempty{p}}$ and $A = (\dots, V_i, \dots)
+    and $M' = V_i \mask \nonempty{p}$.
+    Necessarily, by \textsc{TVec} $Θ;∅ ⊢ V_i : T_i$ and $Θ;∅ ⊢ A : (\dots, T_i, \dots)$.
+    By \textsc{Tapp}, $(\dots, T_i, \dots) \mask \nonempty{p} = T_a$,
+    so by \textsc{MTvector} $T_i \mask \nonempty{p}$ exists
+    and (again by \textsc{Tapp} and \textsc{TprojN}) it must equal $T$.
+    _QED._ by Lemma "Maskable".
   - \textsc{Com1}: By \textsc{TCom} and \textsc{Unit}.
   - \textsc{ComPair}: Recusion among the \textsc{Com*} cases.
   - \textsc{ComInl}:  Recusion among the \textsc{Com*} cases.
