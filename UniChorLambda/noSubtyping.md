@@ -7,6 +7,7 @@ header-includes:
   - \usepackage{amsmath}
   - \usepackage{mathtools}
   - \usepackage{semantic}
+  - \usepackage{ifthen}
 geometry:
   - margin=1.5cm
 ---
@@ -16,9 +17,10 @@ geometry:
 \newcommand{\BNF}{\quad\operatorname{::=}\quad}
 \newcommand{\BNFOR}{\quad\operatorname{\big{|}}\quad}
 \newcommand{\DEF}{{\quad\operatorname{\triangleq}\quad}}
-\renewcommand{\rule}[3]{\mathsf{#1} \dubl \frac{\parbox{12cm}{\vspace{0.7em}\centering #2}}{\parbox{12cm}{\centering #3\vspace{0.7em}}}}
 
 \DeclarePairedDelimiter\norm{\lVert}{\rVert}
+
+\newcommand{\set}[1]{\left\{#1\right\}}
 
 \newcommand{\langword}[1]{\operatorname{\mathsf{#1}}}
 \newcommand{\INL}{\langword{Inl}}
@@ -32,6 +34,8 @@ geometry:
 \newcommand{\COMM}[2]{\langword{com}_{#1;#2}}
 \newcommand{\nonempty}[1]{{#1^{+}}}
 \newcommand{\id}{\operatorname{\mathit{id}}}
+\newcommand{\RECV}[1]{\langword{recv}_{#1}}
+\newcommand{\SEND}[1]{\langword{send}_{#1}}
 
 \newcommand{\owners}{\mathtt{owners}}
 \newcommand{\roles}{\mathtt{roles}}
@@ -40,6 +44,8 @@ geometry:
 \newcommand{\fresh}[1]{\mathtt{fresh}(#1)}
 
 \newcommand{\step}{\operatorname{\longrightarrow}}
+\newcommand{\prcstep}[2]{\xlongrightarrow{ ⊕#1 ; ⊖#2 }}
+\newcommand{\netstep}[2]{\xlongrightarrow{ #1 \ifthenelse{\equal{#1}{}}{}{:} #2 }}
 \newcommand{\myference}[3]{\inference[\textsc{#1}]{#2}{#3}}
 
 ## Syntax
@@ -495,7 +501,7 @@ And then we'll see if we can still prove deadlock freedom.
           {\LOOKUP{i}{\nonempty{p}} (V_1, \dots, V_i, \dots, V_n) \step V'}
           \vdbl
 \myference{Com1}
-          {()@\nonempty{p} \mask \{s\} = ()@s}
+          {()@\nonempty{p} \mask \set{s} = ()@s}
           {\COMM{s}{\nonempty{r}} ()@\nonempty{p} \step ()@\nonempty{r}}
           \quad
 \myference{ComPair}
@@ -569,7 +575,8 @@ Recursive cases:
     which respectively force forms $()$, $\PAIR V_1 V_2$, $\INL V$, and $\INR V$,
     which respectively require that $M$ reduce by
     \textsc{Com1}, \textsc{ComPair}, \textsc{ComInl}, and \textsc{ComInr}.
-    In the case of $()$, this follows from Lemma Sub-Mask, since $\{s\} \subseteq \{s\}$;
+    In the case of $()$, this follows from Lemma Sub-Mask,
+    since $\set{s} \subseteq \set{s}$;
     the other three are recursive among each other.
   - \textsc{Tlambda}: $M$ must reduce by \textsc{AppAbs}.
     By the assumption of \textsc{Tapp} and Lemma Maskable, it can.
@@ -630,3 +637,107 @@ so we consider the recursive cases:
   - \textsc{ComPair}: Recusion among the \textsc{Com*} cases.
   - \textsc{ComInl}:  Recusion among the \textsc{Com*} cases.
   - \textsc{ComInr}:  Recusion among the \textsc{Com*} cases.
+
+
+
+\pagebreak
+## Process Language
+
+I'll follow Chor-$λ$ as close as I can;
+some modification will be necessary beyond just not using everything.
+Following their style, $⟦M⟧_p$ is the projection of $M$ to $p$,
+and $\mathcal{N} = p[B]$ is the behavior $B$ assigned to the party $p$.
+If $p$ and $q$ are the only parties in $M$, then we leave off the subscript to say
+$⟦M⟧ = p[⟦M⟧_p] \mid q[⟦M⟧_q]$.
+When many such compositons need to be expressed at once, we write
+$⟦M⟧ = \mathcal{N} = Π_{p \in \roles{M}} p[⟦M⟧_p]$.
+
+\begin{align*}
+B \BNF   & L
+             && \text{Process expressions are distinguished as $B$ instead of $M$.} \\
+  \BNFOR & B B                && \text{}  \\
+  \BNFOR & \CASE{}{B}{x}{B}{x}{B} && \text{} \\
+L \BNF   & x
+             && \text{Process values are distinguished as $L$ instead of $V$.} \\
+  \BNFOR & λ x : T \DOT B     && \text{} \\
+  \BNFOR & \INL L \BNFOR \INR L \BNFOR \FST{} \BNFOR \SND{} && \text{} \\
+  \BNFOR & \PAIR L L          \BNFOR ()       && \text{} \\
+  \BNFOR & \RECV{p} \BNFOR \SEND{\nonempty{p}} \BNFOR \SEND{\nonempty{p}}^\ast
+             && \text{receive from one party, send to many,
+                      send to many \textit{and} keep for oneself} \\
+  \BNFOR & ⊥                  && \text{"missing" (someplace else)} \\
+T \BNF   & T → T \BNFOR T + T \BNFOR T × T \BNFOR  ()
+             && \text{Types are pretty normal.} \\
+  \BNFOR & ⊥                  && \text{"someone else's problem"}
+\end{align*}
+
+I think we can skip typing of process terms, and go directly to semantics.
+Semantic steps are labeled with send ($⊕$) and receive ($⊖$) sets, like so:
+$B \prcstep{\set{(p,L_1), (q,L_2)}}{\set{(r, L_3), (s, L_4)}} B'$,
+or $B \prcstep{μ}{η} B'$ for short.
+
+\begin{gather*}
+\myference{NabsApp}
+          {}
+          {(λ x : T \DOT B) L \prcstep{∅}{∅} B[x:=L]}
+          \quad
+\myference{Napp1}
+          {B \prcstep{μ}{η} B'}
+          {(λ x : T \DOT B_0) B \prcstep{μ}{η} (λ x : T \DOT B_0) B'}
+          \quad
+\myference{Napp2}
+          {B \prcstep{μ}{η} B'}
+          {B B_2 \prcstep{μ}{η} B' B_2}
+          \vdbl
+\myference{Nsend1A}
+          {}
+          {\SEND{\nonempty{p}} () \prcstep{\set{(p, ()) \mid p \in \nonempty{p}}}{∅} ⊥}
+          \quad
+\myference{NsendPair}
+          {\SEND{\nonempty{p}} L_1 \prcstep{μ_1}{∅} ⊥ \quad
+           \SEND{\nonempty{p}} L_2 \prcstep{μ_2}{∅} ⊥}
+          {\SEND{\nonempty{p}} (\PAIR L_1 L_2)
+           \prcstep{\set{(p, \PAIR L_1 L_2) \mid p \in \nonempty{p}}}{∅}
+           ⊥}
+          \vdbl
+\myference{NsendInL}
+          {\SEND{\nonempty{p}} L \prcstep{μ}{∅} ⊥}
+          {\SEND{\nonempty{p}} (\INL L)
+           \prcstep{\set{(p, \INL L) \mid p \in \nonempty{p}}}{∅}
+           ⊥}
+          \quad
+\myference{NsendInR}
+          {\dots}
+          {\dots}
+          \quad
+\myference{NsendSelf}
+          {\SEND{p} L \prcstep{μ}{∅} ⊥}
+          {\SEND{p}^\ast L \prcstep{μ}{∅} L}
+          \vdbl
+\myference{Nrecv}
+          {}
+          {\RECV{p} \prcstep{∅}{\set{(p, L)}} L}
+\end{gather*}
+
+Network semantic steps are annotated with unpaired send actions, or with $∅$.
+Process level semantics elevate to network level semantics
+provided that the message-annotations cancel out.
+
+\begin{gather*}
+\myference{Npro}
+          {B \prcstep{μ}{∅} B'}
+          {p[B] \netstep{p}{μ} p[B']}
+          \quad
+\myference{Ncom}
+          {\mathcal{N} \netstep{s}{μ∪\set{(r,L)}} \mathcal{N}'
+           \quad B \prcstep{∅}{\set{(s, L)}} B'}
+          {\mathcal{N} \mid r[B] \netstep{s}{μ} \mathcal{N}' \mid r[B']}
+          \vdbl
+\myference{Nmatched}
+          {\mathcal{N} \netstep{p}{∅} \mathcal{N}'}
+          {\mathcal{N} \netstep{}{∅} \mathcal{N}'}
+          \quad
+\myference{Npar}
+          {\mathcal{N} \netstep{}{∅} \mathcal{N}'}
+          {\mathcal{N} \mid \mathcal{N}^{+} \netstep{}{∅} \mathcal{N}' \mid \mathcal{N}^{+}}
+\end{gather*}
