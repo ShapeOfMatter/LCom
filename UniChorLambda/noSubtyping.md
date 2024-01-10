@@ -17,6 +17,7 @@ geometry:
 \newcommand{\BNF}{\quad\operatorname{::=}\quad}
 \newcommand{\BNFOR}{\quad\operatorname{\big{|}}\quad}
 \newcommand{\DEF}{{\quad\operatorname{\triangleq}\quad}}
+\newcommand{\DEFCASE}{\quad\operatorname{\xRightarrow{△}}\quad}
 
 \DeclarePairedDelimiter\norm{\lVert}{\rVert}
 
@@ -38,7 +39,7 @@ geometry:
 \newcommand{\SEND}[1]{\langword{send}_{#1}}
 
 \newcommand{\owners}{\mathtt{owners}}
-\newcommand{\roles}{\mathtt{roles}}
+\newcommand{\roles}[1]{\mathtt{roles}(#1)}
 \newcommand{\mask}{⊳}
 \newcommand{\noop}[2]{\mathtt{noop}^{\mask #1}\!\!(#2)}
 \newcommand{\fresh}[1]{\mathtt{fresh}(#1)}
@@ -84,7 +85,7 @@ Note the use of a super-script "+" to denote sets/lists of parties instead of a 
 this is because it's important that these lists never be empty.
 The type and semantic rules will enforce this as an invariant.
 
-From here on we will assume that bound variables are unique.
+**From here on we will assume that bound variables are unique.**
 It'd be nice to drop this assumption.
 I've tried to make it somewhat explicit in the typing rules.
 
@@ -273,6 +274,7 @@ Possibly these rules are actually too strict, IDK.
            (d_l + d_r)@\nonempty{p} = T_N \mask \nonempty{p} \quad
            \nonempty{p};Γ,(x_l:d_l@\nonempty{p}) ⊢ M_l : T \quad
            \nonempty{p};Γ,(x_r:d_r@\nonempty{p}) ⊢ M_r : T \quad
+           \nonempty{p} \subseteq Θ \quad
            \fresh{x_l, x_r}}
           {Θ;Γ ⊢ \CASE{\nonempty{p}}{N}{x_l}{M_l}{x_r}{M_r} : T}
           \vdbl
@@ -313,6 +315,8 @@ Possibly these rules are actually too strict, IDK.
 \end{gather*}
 
 
+
+
 ### Lemma "Exclave"
 
 > If $Θ;∅ ⊢ M : T$ and $Θ \subseteq Θ'$
@@ -327,81 +331,48 @@ By induction on the typing of $M$.
 - All other cases are unaffected by the larger party-set.
 
 
+
+
+
 \pagebreak
 ## Substitution
 
 In the interest of getting exact type preservation,
 I'm defining a more discerning than usual substitution process.
-TODO: these rules can't fail, so reorganize this
-to not be in the format of inference rules.
 There are non-shadowing cases where substitution is forced to a no-op;
 I think the Lemma "Substitution" suffices to show that that's ok.
 
-\begin{gather*}
-\myference{Svar0}
-          {y ≢ x}
-          {y[x := V] \DEF y}
-          \quad
-\myference{Svar1}
-          {y ≡ x}
-          {y[x := V] \DEF V}
-          \quad
-\myference{Sapp}
-          {M' = M[x:=V] \quad N' = N[x:=V]}
-          {(M N)[x:=V] \DEF M' N'}
-          \vdbl
-\myference{Slambda}
-          {M' = {\begin{cases}
-                M[x:=V'] & V' = V \mask \nonempty{p} \\
-                M & \text{otherwise}
-                \end{cases}}}
-          {((λ y:T \DOT M)@\nonempty{p})[x:=V] \DEF (λ y:T \DOT M')@\nonempty{p}}
-          \vdbl
-\myference{Scase}
-          {M' = M[x:=V] \quad
-           M_l', M_r' = {\begin{cases}
-                         M_l[x:=V'],M_r[x:=V'] & V' = V \mask \nonempty{p} \\
-                         M_l,M_r & \text{otherwise}
-                         \end{cases}}}
-          {(\CASE{\nonempty{p}}{M}{x_l}{M_l}{x_r}{M_r})[x:=V] \DEF
-            \CASE{\nonempty{p}}{M'}{x_l}{M_l'}{x_r}{M_r'})}
-          \vdbl
-\myference{SinL}
-          {V_1' = V_1[x:=V]}
-          {(\INL V_1)[x:=V] \DEF \INL V_1'}
-          \quad
-\myference{SinR}
-          {V_1' = V_1[x:=V]}
-          {(\INR V_1)[x:=V] \DEF \INR V_1'}
-          \vdbl
-\myference{Spair}
-          {V_1' = V_1[x:=V] \quad V_2' = V_2[x:=V]}
-          {(\PAIR V_1 V_2)[x:=V] \DEF \PAIR V_1' V_2'}
-          \quad
-\myference{Svec}
-          {V_1' = V_1[x:=V] \quad \dots \quad V_n' = V_n[x:=V]}
-          {(V_1, \dots, V_n)[x:=V] \DEF (V_1', \dots, V_n')}
-          \vdbl
-\myference{Sunit}
-          {}
-          {(()@\nonempty{p})[x:=V] \DEF ()@\nonempty{p}}
-          \quad
-\myference{Sproj1}
-          {}
-          {(\FST{\nonempty{p}})[x:=V] \DEF \FST{\nonempty{p}}}
-          \quad
-\myference{Sproj2}
-          {}
-          {(\SND{\nonempty{p}})[x:=V] \DEF \SND{\nonempty{p}}}
-          \vdbl
-\myference{SprojN}
-          {}
-          {(\LOOKUP{\nonempty{p}}{i})[x:=V] \DEF \LOOKUP{\nonempty{p}}{i}}
-          \quad
-\myference{Scom}
-          {}
-          {(\COMM{s}{\nonempty{r}})[x:=V] \DEF \COMM{s}{\nonempty{r}}}
-\end{gather*}
+\begin{align*}
+M[x:=V] \DEF \text{by pattern matching on $M$:}& \\
+y            \DEFCASE & \begin{cases}
+                                        y ≡ x & \DEFCASE  V  \\
+                                        y ≢ x & \DEFCASE  y
+                                        \end {cases} \\
+N_1 N_2     \DEFCASE & N_1[x:=V] N_2[x:=V] \\
+(λ y:T \DOT N)@\nonempty{p}  \DEFCASE & \begin{cases}
+                                        V \mask \nonempty{p} = V'
+                                            & \DEFCASE (λ y:T \DOT N[x:=V'])@\nonempty{p} \\
+                                        \text{otherwise} & \DEFCASE M
+                                        \end{cases} \\
+\CASE{\nonempty{p}}{N}{x_l}{M_l}{x_r}{M_r} \DEFCASE & \begin{cases}
+                                        V \mask \nonempty{p} = V'
+                                            & \!\!\!\!\!\!\!\!  \DEFCASE \!\!\!\! \CASE{\nonempty{p}}
+                                                            {N[x:=V]}{x_l}{M_l[x:=V']}
+                                                            {x_r}{M_r[x:=V']} \\
+                                        \text{otherwise}
+                                            & \!\!\!\!\!\!\!\!  \DEFCASE \!\!\!\! \CASE{\nonempty{p}}
+                                                            {N[x:=V]}{x_l}{M_l}{x_r}{M_r})
+                                        \end{cases} \\
+\INL V_1    \DEFCASE & \INL V_1[x:=V] \\
+\INR V_2    \DEFCASE & \INR V_2[x:=V] \\
+\PAIR V_1 V_2  \DEFCASE & \PAIR V_1[x:=V] V_2[x:=V] \\
+(V_1, \dots, V_n) \DEFCASE & (V_1[x:=V], \dots, V_n[x:=V]) \\
+()@\nonempty{p}
+          \BNFOR \FST{\nonempty{p}}
+          \BNFOR \SND{\nonempty{p}} \qquad\qquad \\
+          \BNFOR \LOOKUP{\nonempty{p}}{i}
+          \BNFOR \COMM{s}{\nonempty{r}}       \DEFCASE & M
+\end{align*}
 
 ### Lemma "Unused"
 
@@ -469,7 +440,7 @@ And then we'll see if we can still prove deadlock freedom.
           \vdbl
 \myference{App1}
           {N \step N'}
-          {((λ x:T \DOT M)\nonempty{p}) N \step ((λ x:T \DOT M)\nonempty{p}) N'}
+          {V N \step V N'}
           \quad
 \myference{App2}
           {M \step M'}
@@ -477,7 +448,8 @@ And then we'll see if we can still prove deadlock freedom.
           \vdbl
 \myference{Case}
           {N \step N'}
-          {\CASE{\nonempty{p}}{N}{x_l}{M_l}{x_r}{M_r} \step \CASE{\nonempty{p}}{N'}{x_l}{M_l}{x_r}{M_r}}
+          {\CASE{\nonempty{p}}{N}{x_l}{M_l}{x_r}{M_r}
+            \step \CASE{\nonempty{p}}{N'}{x_l}{M_l}{x_r}{M_r}}
           \vdbl
 \myference{CaseL}
           {V' = V \mask \nonempty{p} \quad
@@ -645,49 +617,89 @@ so we consider the recursive cases:
 
 I'll follow Chor-$λ$ as close as I can;
 some modification will be necessary beyond just not using everything.
-Following their style, $⟦M⟧_p$ is the projection of $M$ to $p$,
-and $\mathcal{N} = p[B]$ is the behavior $B$ assigned to the party $p$.
-If $p$ and $q$ are the only parties in $M$, then we leave off the subscript to say
-$⟦M⟧ = p[⟦M⟧_p] \mid q[⟦M⟧_q]$.
-When many such compositons need to be expressed at once, we write
-$⟦M⟧ = \mathcal{N} = Π_{p \in \roles{M}} p[⟦M⟧_p]$.
 
 \begin{align*}
 B \BNF   & L
              && \text{Process expressions are distinguished as $B$ instead of $M$.} \\
   \BNFOR & B B                && \text{}  \\
   \BNFOR & \CASE{}{B}{x}{B}{x}{B} && \text{} \\
-L \BNF   & x
+L \BNF   & x \BNFOR ()
              && \text{Process values are distinguished as $L$ instead of $V$.} \\
-  \BNFOR & λ x : T \DOT B     && \text{} \\
-  \BNFOR & \INL L \BNFOR \INR L \BNFOR \FST{} \BNFOR \SND{} && \text{} \\
-  \BNFOR & \PAIR L L          \BNFOR ()       && \text{} \\
+  \BNFOR & λ x \DOT B     && \text{} \\
+  \BNFOR & \INL L \BNFOR \INR L  \\
+  \BNFOR & \PAIR L L  \BNFOR  \FST{} \BNFOR \SND{} \\
+  \BNFOR & (L, \dots, L) \BNFOR \LOOKUP{n}{} && \text{} \\
   \BNFOR & \RECV{p} \BNFOR \SEND{\nonempty{p}} \BNFOR \SEND{\nonempty{p}}^\ast
              && \text{receive from one party, send to many,
                       send to many \textit{and} keep for oneself} \\
   \BNFOR & ⊥                  && \text{"missing" (someplace else)} \\
-T \BNF   & T → T \BNFOR T + T \BNFOR T × T \BNFOR  ()
-             && \text{Types are pretty normal.} \\
-  \BNFOR & ⊥                  && \text{"someone else's problem"}
 \end{align*}
 
-I think we can skip typing of process terms, and go directly to semantics.
+The process language is untyped; hopefully I don't need it!
 Semantic steps are labeled with send ($⊕$) and receive ($⊖$) sets, like so:
 $B \prcstep{\set{(p,L_1), (q,L_2)}}{\set{(r, L_3), (s, L_4)}} B'$,
 or $B \prcstep{μ}{η} B'$ for short.
 
 \begin{gather*}
+\myference{NbotPair}
+          {V_1 \prcstep{∅}{∅}^{?} ⊥ \quad V_2 \prcstep{∅}{∅}^{?} ⊥}
+          {\PAIR V_1 V_2 \prcstep{∅}{∅} ⊥}
+          \quad
+\myference{NbotVec}
+          {V \prcstep{∅}{∅}^{?} ⊥ \quad \dots}
+          {(V, \dots) \prcstep{∅}{∅} ⊥}
+          \quad
+\myference{NbotInl}
+          {V \prcstep{∅}{∅}^{?} ⊥}
+          {\INL V \prcstep{∅}{∅} ⊥}
+          \quad
+\myference{NbotInr}
+          {\dots}
+          {\dots}
+          \vdbl
+\myference{NbotApp}
+          {}
+          {⊥ L \prcstep{∅}{∅} ⊥}
+          \quad
+\myference{NbotCase}
+          {}
+          {\CASE{}{⊥}{x_l}{B_l}{x_r}{B_r} \prcstep{∅}{∅} ⊥}
+          \vdbl
 \myference{NabsApp}
           {}
-          {(λ x : T \DOT B) L \prcstep{∅}{∅} B[x:=L]}
+          {(λ x \DOT B) L \prcstep{∅}{∅} B[x:=L]}
           \quad
 \myference{Napp1}
           {B \prcstep{μ}{η} B'}
-          {(λ x : T \DOT B_0) B \prcstep{μ}{η} (λ x : T \DOT B_0) B'}
+          {L B \prcstep{μ}{η} L B'}
           \quad
 \myference{Napp2}
           {B \prcstep{μ}{η} B'}
           {B B_2 \prcstep{μ}{η} B' B_2}
+          \vdbl
+\myference{Ncase}
+          {B \prcstep{μ}{η} B'}
+          {\CASE{}{B}{x_l}{B_l}{x_r}{B_r} \prcstep{μ}{η} \CASE{}{B'}{x_l}{B_l}{x_r}{B_r}}
+          \vdbl
+\myference{NcaseL}
+          {}
+          {\CASE{}{\INL L}{x_l}{B_l}{x_r}{B_r} \prcstep{∅}{∅} B_l[x_l := L]}
+          \quad
+\myference{NcaseR}
+          {\dots}
+          {\dots}
+          \vdbl
+\myference{Nproj1}
+          {}
+          {\FST{} (\PAIR L_1 L_2) \prcstep{∅}{∅} L_1}
+          \quad
+\myference{Nproj2}
+          {\dots}
+          {\dots}
+          \quad
+\myference{NprojN}
+          {}
+          {\LOOKUP{i}{} (L_1, \dots, L_i, \dots, L_n) \prcstep{∅}{∅} L_i}
           \vdbl
 \myference{Nsend1A}
           {}
@@ -719,7 +731,19 @@ or $B \prcstep{μ}{η} B'$ for short.
           {\RECV{p} \prcstep{∅}{\set{(p, L)}} L}
 \end{gather*}
 
-Network semantic steps are annotated with unpaired send actions, or with $∅$.
+
+\pagebreak
+## Networks
+
+A singleton network $\mathcal{N} = p[B]$
+is the behavior $B$ assigned to the party/process $p$.
+Parallel composition of networks is expressed as $\mathcal{N} \mid \mathcal{N}'$,
+_e.g._ $⟦M⟧ = p[⟦M⟧_p] \mid q[⟦M⟧_q]$.
+When many such compositons need to be expressed at once, we write
+$\mathcal{N} = Π_{p \in \nonempty{p}} p[\mathcal{N}_p]$.
+
+Network semantic steps are annotated with unpaired send actions or with $∅$;
+in practice only $∅$-annotated steps are "real".
 Process level semantics elevate to network level semantics
 provided that the message-annotations cancel out.
 
@@ -741,3 +765,158 @@ provided that the message-annotations cancel out.
           {\mathcal{N} \netstep{}{∅} \mathcal{N}'}
           {\mathcal{N} \mid \mathcal{N}^{+} \netstep{}{∅} \mathcal{N}' \mid \mathcal{N}^{+}}
 \end{gather*}
+
+### Lemma "Parallelism"
+
+> If $\mathcal{N_1} \netstep{}{∅}^{\ast} \mathcal{N_1}'$
+> and $\mathcal{N_2} \netstep{}{∅}^{\ast} \mathcal{N_2}'$
+> then $\mathcal{N_1} \mid \mathcal{N_2} \netstep{}{∅}^{\ast} \mathcal{N_1}' \mid \mathcal{N_2} \netstep{}{∅}^{\ast} \mathcal{N_1}' \mid \mathcal{N_2}'$.
+
+**Proof**: This is just repeated application of \textsc{Npar}.
+
+
+\pagebreak
+## Endpoint projection
+
+Following Chor-$λ$, $⟦M⟧_p$ is the projection of $M$ to $p$
+and $⟦M⟧ = Π_{p \in \roles{M}} p[⟦M⟧_p]$.
+If $p$ and $q$ are the only parties in $M$, then
+$⟦M⟧ = p[⟦M⟧_p] \mid q[⟦M⟧_q]$.
+
+\begin{align*}
+⟦M⟧_p                        \DEF      \text{by pattern matching on $M$:}& \\
+M N                          \DEFCASE & ⟦M⟧_p ⟦N⟧_p         \\
+\CASE{\nonempty{p}}{N}{x_l}{M_l}{x_r}{M_r} \DEFCASE &
+  \begin{cases}
+    p \in \nonempty{p}       \DEFCASE & \CASE{}{⟦N⟧_p}{x_l}{⟦M_l⟧_p}{x_r}{⟦M_r⟧_p} \\
+    \text{else}              \DEFCASE & \CASE{}{⟦N⟧_p}{x_l}{⊥}{x_r}{⊥}
+  \end{cases}  \\
+x                            \DEFCASE &  x        \\
+(λ x:T \DOT M)@\nonempty{p}  \DEFCASE &
+  \begin{cases}
+    p \in \nonempty{p}       \DEFCASE & λ x \DOT ⟦M⟧_p \\
+    \text{else}              \DEFCASE & ⊥
+  \end{cases}  \\
+()@\nonempty{p}              \DEFCASE &
+  \begin{cases}
+    p \in \nonempty{p}       \DEFCASE & () \\
+    \text{else}              \DEFCASE & ⊥
+  \end{cases}  \\
+\INL V                       \DEFCASE & \INL ⟦V⟧_p  &&      \\
+\INR V                       \DEFCASE & \INR ⟦V⟧_p  &&      \\
+\PAIR V_1 V_2                \DEFCASE & \PAIR ⟦V_1⟧_p ⟦V_2⟧_p &&         \\
+(V_1, \dots, V_n)            \DEFCASE & (⟦V_1⟧_p, \dots, ⟦V_n⟧_p) &&       \\
+\FST{\nonempty{p}}           \DEFCASE &
+  \begin{cases}
+    p \in \nonempty{p}       \DEFCASE & \FST{} \\
+    \text{else}              \DEFCASE & ⊥
+  \end{cases}  \\
+\SND{\nonempty{p}}           \DEFCASE &
+  \begin{cases}
+    p \in \nonempty{p}       \DEFCASE & \SND{} \\
+    \text{else}              \DEFCASE & ⊥
+  \end{cases}  \\
+\LOOKUP{i}{\nonempty{p}}     \DEFCASE &
+  \begin{cases}
+    p \in \nonempty{p}       \DEFCASE & \LOOKUP{i}{} \\
+    \text{else}              \DEFCASE & ⊥
+  \end{cases}  \\
+\COMM{s}{\nonempty{r}}       \DEFCASE &
+  \begin{cases}
+    p = s, p \in \nonempty{r}      \DEFCASE & \SEND{\nonempty{r} ∖ \set{p}}^\ast \\
+    p = s, p \not\in \nonempty{r}  \DEFCASE & \SEND{\nonempty{r}} \\
+    p \not = s, p \in \nonempty{r} \DEFCASE & \RECV{s} \\
+    \text{else}              \DEFCASE & ⊥
+  \end{cases}  \\
+\end{align*}
+
+
+### Lemma "Cruft"
+
+> If $Θ;∅ ⊢ M : T$ and $p \not\in Θ$,
+> then $⟦M⟧_p \prcstep{∅}{∅}^{\ast} ⊥$.
+
+**Proof**:
+By induction on the typing of $M$.
+Note that in the process semantics recursive forms of $L$ can step,
+reducing structures on $⊥$ to $⊥$
+
+- \textsc{Tlambda}: $\nonempty{p} \subseteq Θ$, therefore $p \not\in \nonempty{p}$,
+  therefore $⟦M⟧_p = ⊥$.
+- \textsc{Tvar}: Can't happen because $M$ types with empty $Γ$.
+- \textsc{Tapp}: $⟦M⟧_p = ⟦N_1⟧_p ⟦N_2⟧_p$.
+  By induction, $⟦N_1⟧_p \prcstep{∅}{∅}^{\ast} ⊥$, so by repeated use of \textsc{Napp2}
+  (and then similarly for $⟦N_2⟧_p$ and \textsc{Napp1}, and finally by \textsc{NbotApp})
+  we have $⟦N_1⟧_p ⟦N_2⟧_p \prcstep{∅}{∅}^{\ast} ⊥ ⟦N_2⟧_p \prcstep{∅}{∅}^{\ast} ⊥⊥ \prcstep{∅}{∅} ⊥$.
+- \textsc{Tcase}: Similar to \textsc{Tlambda} and \textsc{Tapp}.
+  By induction, the projection will multi-step to $\CASE{}{⊥}{x_l}{⊥}{x_r}{⊥}$,
+  which steps by \textsc{NbotCase} to $⊥$.
+- \textsc{Tunit}, \textsc{Tcom}, \textsc{Tproj1}, \textsc{Tproj2}, and \textsc{TprojN}:
+  Same as \textsc{Tlambda}.
+- \textsc{Tpair}, \textsc{Tvec}, \textsc{Tinl}, and \textsc{Tinr}:
+  In each of these cases we have some number of recursive typing judgments to which we can
+  apply the inductive hypothesis.
+  This enables the respective use of
+  \textsc{NbotPair}, \textsc{NbotVec}, \textsc{nBotInl}, and \textsc{NbotInr}.
+
+
+### Lemma "Values"
+
+> $⟦V⟧_p = L$.
+
+**Proof**: This is just a corollary of the definition of projection.
+
+### Lemma "Masked"
+
+> If $p \in \nonempty{p}$ and $V' = V \mask \nonempty{p}$
+> then $⟦V⟧_p = ⟦V \mask \nonempty{p}⟧_p$.
+
+**Proof**: By (inductive) case analysis of endpoint projection:
+
+- $⟦x⟧_p = x$. By \textsc{MVvar} the mask does nothing.
+- $⟦(λ x:T \DOT M)@\nonempty{q}⟧_p$:
+  Since $V \mask \nonempty{p}$ is defined, by \textsc{MVlambda} it does nothing.
+- $⟦()@\nonempty{q}⟧_p$: By \textsc{MVunit} $V' = ()@(\nonempty{p} ∩ \nonempty{q})$.
+  $p$ is in that intersection iff $p \in \nonempty{q}$,
+  so the projections will both be $()$ or $⊥$ correctly.
+- $\INL V_l$, $\INR V_r$, $\PAIR V_1 V_2$, $(V_1, \dots, V_n)$: simple recursion.
+- $\FST{\nonempty{q}}$, $\SND{\nonempty{q}}$,
+  $\LOOKUP{i}{\nonempty{q}}$, $\COMM{q}{\nonempty{q}}$:
+  Since the masking is defined, it does nothing.
+
+
+### Lemma "Distributive Substitution"
+
+> $⟦M[x:=V]⟧_p = ⟦M⟧_p[x := ⟦V⟧_p]$.
+
+**Proof**: By inductive case analysis on the form of $M$.
+
+- $N_1 N_2$, $\INL V_l$, $\INR V_r$, $\PAIR V_1 V_2$, $(V_1, \dots, V_n)$: simple induction.
+- $\CASE{\nonempty{p}}{N}{x_l}{N_l}{x_r}{N_r}$
+- $y$: trivial because EPP is a no-op.
+- $(λ x:T \DOT N)@\nonempty{p}$:  
+  If $p \not\in \nonempty{p}$, both sides of the equality are $⊥$.  
+  If $V' = V \mask \nonempty{p}$ is defined, then we do induction on $N$ and $V'$.
+  Otherwise.... TOOO DOOOO!!
+- $()@\nonempty{p}$, $\FST{\nonempty{p}}$, $\SND{\nonempty{p}}$,
+  $\LOOKUP{i}{\nonempty{p}}$, and $\COMM{s}{\nonempty{r}}$:
+  trivial because substitution is a no-op.
+
+### Theorem "Completeness"
+
+> If $Θ;∅ ⊢ M : T$ and $M \step M'$,
+> then $⟦M⟧ \netstep{}{∅}^{+} \mathcal{N}$ such that $⟦M'⟧\netstep{}{∅}^{\ast}\mathcal{N}$.
+
+**Proof**:
+By case analysis on the semantic step $M \step M'$:
+
+- \textsc{AppAbs}: $M = ((λ x:T \DOT N)@\nonempty{p}) V$, $V' = V \mask \nonempty{p}$,
+  and $M' = N[x:=V']$.  
+  $⟦M⟧ = \mathcal{N}_1 \mid \mathcal{N}_2$
+  where $\mathcal{N}_1 = Π_{p \in \nonempty{p}} p[(λ x \DOT ⟦N⟧_p) ⟦V⟧_p]$
+  and $\mathcal{N}_2 =  Π_{p \not\in \nonempty{p}} p[⊥ ⟦V⟧_p]$.  
+  By Lemma "Values", each party in $\mathcal{N}_2$ can step by \textsc{NbotApp} to $⊥$.
+  By Lemma "Values", each party $p$ in $\mathcal{N}_1$ can step by \textsc{NabsAppp}
+  to $⟦N⟧_p[x := ⟦V⟧_p]$.
+
+
