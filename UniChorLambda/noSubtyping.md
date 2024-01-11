@@ -453,7 +453,7 @@ And then we'll see if we can still prove deadlock freedom.
           \vdbl
 \myference{CaseL}
           {V' = V \mask \nonempty{p} \quad
-           M_l' = M_l[x := V']}
+           M_l' = M_l[x_l := V']}
           {\CASE{\nonempty{p}}{\INL V}{x_l}{M_l}{x_r}{M_r} \step M_l'}
           \quad
 \myference{CaseR}
@@ -635,36 +635,56 @@ L \BNF   & x \BNFOR ()
   \BNFOR & ⊥                  && \text{"missing" (someplace else)} \\
 \end{align*}
 
+We have an equivalence class on Process Values based on glomming of $⊥$:
+$L_1 ≈ L_2$.
+This lifts to expressions (_e.g._ $(\INL ⊥) N ≈ ⊥ N$)
+and from there to networks
+(_e.g._ $p[(\INL ⊥) N] \mid \mathcal{N} ≈ p[⊥] \mid \mathcal{N}$).
+
+\begin{gather*}
+\myference{EBpair}
+          {}
+          {\PAIR ⊥ ⊥ ≈ ⊥}
+          \quad
+\myference{EBvec}
+          {\text{They're \textit{all} $⊥$.}}
+          {(⊥, \dots) ≈ ⊥}
+          \quad
+\myference{EBinl}
+          {}
+          {\INL ⊥ ≈ ⊥}
+          \quad
+\myference{EBinr}
+          {\dots}
+          {\dots}
+          \vdbl
+\myference{EBpairR1}
+          {V_1 ≈ V_1'}
+          {\PAIR V_1 V_2 ≈ \PAIR V_1' V_2}
+          \quad
+\myference{EBpairR2}
+          {V_2 ≈ V_2'}
+          {\dots}
+          \quad
+\myference{EBvecR}
+          {V ≈ V'}
+          {(\dots, V, \dots) ≈ (\dots, V', \dots)}
+          \vdbl
+\myference{EBinlR}
+          {V ≈ V'}
+          {\INL V ≈ \INL V'}
+          \quad
+\myference{EBinrR}
+          {\dots}
+          {\dots}
+\end{gather*}
+
 The process language is untyped; hopefully I don't need it!
 Semantic steps are labeled with send ($⊕$) and receive ($⊖$) sets, like so:
 $B \prcstep{\set{(p,L_1), (q,L_2)}}{\set{(r, L_3), (s, L_4)}} B'$,
 or $B \prcstep{μ}{η} B'$ for short.
 
 \begin{gather*}
-\myference{NbotPair}
-          {V_1 \prcstep{∅}{∅}^{?} ⊥ \quad V_2 \prcstep{∅}{∅}^{?} ⊥}
-          {\PAIR V_1 V_2 \prcstep{∅}{∅} ⊥}
-          \quad
-\myference{NbotVec}
-          {V \prcstep{∅}{∅}^{?} ⊥ \quad \dots}
-          {(V, \dots) \prcstep{∅}{∅} ⊥}
-          \quad
-\myference{NbotInl}
-          {V \prcstep{∅}{∅}^{?} ⊥}
-          {\INL V \prcstep{∅}{∅} ⊥}
-          \quad
-\myference{NbotInr}
-          {\dots}
-          {\dots}
-          \vdbl
-\myference{NbotApp}
-          {}
-          {⊥ L \prcstep{∅}{∅} ⊥}
-          \quad
-\myference{NbotCase}
-          {}
-          {\CASE{}{⊥}{x_l}{B_l}{x_r}{B_r} \prcstep{∅}{∅} ⊥}
-          \vdbl
 \myference{NabsApp}
           {}
           {(λ x \DOT B) L \prcstep{∅}{∅} B[x:=L]}
@@ -729,6 +749,19 @@ or $B \prcstep{μ}{η} B'$ for short.
 \myference{Nrecv}
           {}
           {\RECV{p} \prcstep{∅}{\set{(p, L)}} L}
+          \quad
+\myference{Nequiv}
+          {B \prcstep{μ}{η} B' \quad B' ≈ B''}
+          {B \prcstep{μ}{η} B''}
+          \vdbl
+\myference{NbotApp}
+          {}
+          {⊥ L \prcstep{∅}{∅} ⊥}
+          \quad
+\myference{NbotCase}
+          {}
+          {\CASE{}{⊥}{x_l}{B_l}{x_r}{B_r} \prcstep{∅}{∅} ⊥}
+          \vdbl
 \end{gather*}
 
 
@@ -746,6 +779,8 @@ Network semantic steps are annotated with unpaired send actions or with $∅$;
 in practice only $∅$-annotated steps are "real".
 Process level semantics elevate to network level semantics
 provided that the message-annotations cancel out.
+The equivalence relation $≈$ lifts to networks;
+I don't think we need explicit rules for that?
 
 \begin{gather*}
 \myference{Npro}
@@ -785,16 +820,21 @@ $⟦M⟧ = p[⟦M⟧_p] \mid q[⟦M⟧_q]$.
 
 \begin{align*}
 ⟦M⟧_p                        \DEF      \text{by pattern matching on $M$:}& \\
-M N                          \DEFCASE & ⟦M⟧_p ⟦N⟧_p         \\
+N_1 N_2                      \DEFCASE &
+  \begin{cases}
+    ⟦N_1⟧_p ≈ ⊥ ≈ ⟦N_2⟧_p    \DEFCASE & ⊥  \\
+    \text{else}              \DEFCASE & ⟦N_1⟧_p ⟦N_2⟧_p
+  \end{cases}  \\
 \CASE{\nonempty{p}}{N}{x_l}{M_l}{x_r}{M_r} \DEFCASE &
   \begin{cases}
+    ⟦N⟧_p ≈ ⊥                \DEFCASE & ⊥ \\
     p \in \nonempty{p}       \DEFCASE & \CASE{}{⟦N⟧_p}{x_l}{⟦M_l⟧_p}{x_r}{⟦M_r⟧_p} \\
     \text{else}              \DEFCASE & \CASE{}{⟦N⟧_p}{x_l}{⊥}{x_r}{⊥}
   \end{cases}  \\
 x                            \DEFCASE &  x        \\
-(λ x:T \DOT M)@\nonempty{p}  \DEFCASE &
+(λ x:T \DOT N)@\nonempty{p}  \DEFCASE &
   \begin{cases}
-    p \in \nonempty{p}       \DEFCASE & λ x \DOT ⟦M⟧_p \\
+    p \in \nonempty{p}       \DEFCASE & λ x \DOT ⟦N⟧_p \\
     \text{else}              \DEFCASE & ⊥
   \end{cases}  \\
 ()@\nonempty{p}              \DEFCASE &
@@ -834,49 +874,62 @@ x                            \DEFCASE &  x        \\
 ### Lemma "Cruft"
 
 > If $Θ;∅ ⊢ M : T$ and $p \not\in Θ$,
-> then $⟦M⟧_p \prcstep{∅}{∅}^{\ast} ⊥$.
+> then $⟦M⟧_p ≈ ⊥$.
 
 **Proof**:
-By induction on the typing of $M$.
-Note that in the process semantics recursive forms of $L$ can step,
-reducing structures on $⊥$ to $⊥$
+By induction on the typing of $M$:
 
-- \textsc{Tlambda}: $\nonempty{p} \subseteq Θ$, therefore $p \not\in \nonempty{p}$,
+- \textsc{Tlambda}:
+  $\nonempty{p} \subseteq Θ$, therefore $p \not\in \nonempty{p}$,
   therefore $⟦M⟧_p = ⊥$.
 - \textsc{Tvar}: Can't happen because $M$ types with empty $Γ$.
-- \textsc{Tapp}: $⟦M⟧_p = ⟦N_1⟧_p ⟦N_2⟧_p$.
-  By induction, $⟦N_1⟧_p \prcstep{∅}{∅}^{\ast} ⊥$, so by repeated use of \textsc{Napp2}
-  (and then similarly for $⟦N_2⟧_p$ and \textsc{Napp1}, and finally by \textsc{NbotApp})
-  we have $⟦N_1⟧_p ⟦N_2⟧_p \prcstep{∅}{∅}^{\ast} ⊥ ⟦N_2⟧_p \prcstep{∅}{∅}^{\ast} ⊥⊥ \prcstep{∅}{∅} ⊥$.
-- \textsc{Tcase}: Similar to \textsc{Tlambda} and \textsc{Tapp}.
-  By induction, the projection will multi-step to $\CASE{}{⊥}{x_l}{⊥}{x_r}{⊥}$,
-  which steps by \textsc{NbotCase} to $⊥$.
-- \textsc{Tunit}, \textsc{Tcom}, \textsc{Tproj1}, \textsc{Tproj2}, and \textsc{TprojN}:
+- \textsc{Tunit}, \textsc{Tcom}, \textsc{Tproj1}, \textsc{Tproj2},
+  and \textsc{TprojN}:
   Same as \textsc{Tlambda}.
 - \textsc{Tpair}, \textsc{Tvec}, \textsc{Tinl}, and \textsc{Tinr}:
-  In each of these cases we have some number of recursive typing judgments to which we can
-  apply the inductive hypothesis.
+  In each of these cases we have some number of recursive typing judgments
+  to which we can apply the inductive hypothesis.
   This enables the respective use of
-  \textsc{NbotPair}, \textsc{NbotVec}, \textsc{nBotInl}, and \textsc{NbotInr}.
+  \textsc{EBpair}, \textsc{EBvec}, \textsc{EBinl}, and \textsc{EBinr}.
+- \textsc{Tapp}: $M = N_1 N_2$.
+  By induction, $⟦N_1⟧_p ≈ ⊥$ and $⟦N_2⟧_p ≈ ⊥$,
+  so $⟦M⟧_p = ⊥$
+- \textsc{Tcase}: Similar to \textsc{Tlambda},
+  by induction the guard projects to $⊥$ and therefore the whole thing does too.
+
+
+### Lemma "Existence"
+
+> If $Θ;Γ ⊢ V : d@\nonempty{p}$ and $p \in \nonempty{p}$,
+> then $⟦V⟧_p ≉ ⊥$.
+
+**Proof**: By induction on possible typings of $V$:
+
+- \textsc{Tvar}: Projection is a no-op on variables.
+- \textsc{TUnit}: $⟦V⟧_p = ()$.
+- \textsc{Tpair}: $p \in \nonempty{p_1} ∩ \nonempty{p_2}$,
+  so it's in each of them, so we can recurse on $V_1$ and $V_2$.
+- \textsc{Tinl} and \textsc{Tinr}: simple induction.
 
 
 ### Lemma "Values"
 
-> $⟦V⟧_p = L$.
+> **A):** $⟦V⟧_p = L$.  
+> **B):** If $⟦M⟧_p = L ≉ ⊥$ then $M$ is a value $V$.
 
-**Proof**: This is just a corollary of the definition of projection.
+**Proof**: These are just corollaries of the definition of projection.
 
 ### Lemma "Masked"
 
 > If $p \in \nonempty{p}$ and $V' = V \mask \nonempty{p}$
-> then $⟦V⟧_p = ⟦V \mask \nonempty{p}⟧_p$.
+> then $⟦V⟧_p = ⟦V'⟧_p$.
 
 **Proof**: By (inductive) case analysis of endpoint projection:
 
 - $⟦x⟧_p = x$. By \textsc{MVvar} the mask does nothing.
 - $⟦(λ x:T \DOT M)@\nonempty{q}⟧_p$:
   Since $V \mask \nonempty{p}$ is defined, by \textsc{MVlambda} it does nothing.
-- $⟦()@\nonempty{q}⟧_p$: By \textsc{MVunit} $V' = ()@(\nonempty{p} ∩ \nonempty{q})$.
+- $⟦()@\nonempty{q}⟧_p$: By \textsc{MVunit} $V' = )@(\nonempty{p} ∩ \nonempty{q})$.
   $p$ is in that intersection iff $p \in \nonempty{q}$,
   so the projections will both be $()$ or $⊥$ correctly.
 - $\INL V_l$, $\INR V_r$, $\PAIR V_1 V_2$, $(V_1, \dots, V_n)$: simple recursion.
@@ -887,25 +940,187 @@ reducing structures on $⊥$ to $⊥$
 
 ### Lemma "Distributive Substitution"
 
-> $⟦M[x:=V]⟧_p = ⟦M⟧_p[x := ⟦V⟧_p]$.
+> If $Θ;(x : T_x) ⊢ M : T$ and $p \in Θ$,
+> then $⟦M[x:=V]⟧_p = ⟦M⟧_p[x := ⟦V⟧_p]$.
 
 **Proof**: By inductive case analysis on the form of $M$.
 
-- $N_1 N_2$, $\INL V_l$, $\INR V_r$, $\PAIR V_1 V_2$, $(V_1, \dots, V_n)$: simple induction.
-- $\CASE{\nonempty{p}}{N}{x_l}{N_l}{x_r}{N_r}$
+- $\INL V_l$, $\INR V_r$, $\PAIR V_1 V_2$, $(V_1, \dots, V_n)$: simple induction.
+- $N_1 N_2$: The special case where $⟦N_1⟧_p ≈ ⟦N_2⟧_p ≈ ⊥$ must be handled
+  seperately, but either way it's simple induction.
 - $y$: trivial because EPP is a no-op.
-- $(λ x:T \DOT N)@\nonempty{p}$:  
-  If $p \not\in \nonempty{p}$, both sides of the equality are $⊥$.  
-  If $V' = V \mask \nonempty{p}$ is defined, then we do induction on $N$ and $V'$.
-  Otherwise.... TOOO DOOOO!!
+- $(λ y:T_y \DOT N)@\nonempty{p}$:
+  - If $p \not\in \nonempty{p}$, both sides of the equality are $⊥$.
+  - If $V' = V \mask \nonempty{p}$ is defined, then  
+    $⟦(λ y:T_y \DOT N)@\nonempty{p}[x:=V]⟧_p
+    =⟦(λ y:T_y \DOT N[x:=V'])@\nonempty{p}⟧_p
+    =  λ y \DOT ⟦N[x:=V']⟧_p$  
+    and
+    $⟦(λ y:T_y \DOT N)@\nonempty{p}⟧_p[x := ⟦V⟧_p]
+    = (λ y \DOT ⟦N⟧_p)[x := ⟦V⟧_p]
+    =  λ y \DOT (⟦N⟧_p[x := ⟦V⟧_p])
+    =  λ y \DOT (⟦N⟧_p[x := ⟦V'⟧_p])$  
+    (by Lemma "Masked").  
+    Then we do induction on $N$ and $V'$.
+  - Otherwise
+    - $⟦(λ y:T_y \DOT N)@\nonempty{p}[x:=V]⟧_p = ⟦(λ y:T_y \DOT N)@\nonempty{p}⟧_p
+      = λ y \DOT ⟦N⟧_p$  
+      and $⟦(λ y:T_y \DOT N)@\nonempty{p}⟧_p[x := ⟦V⟧_p]
+      = (λ y \DOT ⟦N⟧_p)[x := ⟦V⟧_p]
+      = λ y \DOT (⟦N⟧_p[x := ⟦V⟧_p])$.
+    - Since we already known $(λ y:T_y \DOT N)@\nonempty{p}[x:=V] = M$,
+      we can apply Lemma "Substitution" to $M$ and unpack the typing of $M[x:=V]$
+      to get $\nonempty{p};(y:T_y) ⊢ N : T'$.
+    - By Lemma "Unused", we get $N[x:=V] = N$.
+    - By induction on $N$ and $V$, we get $⟦N⟧_p[x := ⟦V⟧_p] = ⟦N[x:=V]⟧_p =  ⟦N⟧_p$,
+      QED.
+- $\CASE{\nonempty{p}}{N}{x_l}{N_l}{x_r}{N_r}$: (maybe I should work these out more?)
+  - If $⟦N⟧_p ≈ ⊥$ then $⟦N[x:=V]⟧_p ≈ ⊥$ (by induction),
+    so both halfs of the equality are $⊥$.
+  - Else if $p \not \in \nonempty{p}$, then we get  
+    $⟦\CASE{\nonempty{p}}{N[x:=V]}{x_l}{N_l'}{x_r}{N_r'}⟧_p
+    = \CASE{\nonempty{p}}{⟦N[x:=V]⟧_p}{x_l}{⊥}{x_r}{⊥}$  
+    and
+    $⟦\CASE{\nonempty{p}}{N}{x_l}{N_l}{x_r}{N_r}⟧_p[x := ⟦V⟧_p]
+    = \CASE{\nonempty{p}}{⟦N⟧_p}{x_l}{⊥}{x_r}{⊥}[x := ⟦V⟧_p]
+    = \CASE{\nonempty{p}}{⟦N⟧_p[x := ⟦V⟧_p]}{x_l}{⊥}{x_r}{⊥}$,  
+    which are equal by induction.
+  - Else if $V' = V \mask \nonempty{p}$ is defined then we can do induction similar
+    similar to how we did for the respective lambda case, except the induction is
+    three-way.
+  - Otherwise, it's similar to the respective lambda case, just more verbose.
 - $()@\nonempty{p}$, $\FST{\nonempty{p}}$, $\SND{\nonempty{p}}$,
   $\LOOKUP{i}{\nonempty{p}}$, and $\COMM{s}{\nonempty{r}}$:
   trivial because substitution is a no-op.
 
+### Lemma "Bottom"
+
+> If $Θ;∅ ⊢ M : T$ and $⟦M⟧_p ≈ ⊥$ and $M \step M'$
+> then $⟦M'⟧_p ≈ ⊥$.
+
+**Proof**: By induction on the step $M \step M'$.
+
+- \textsc{AppAbs}: $M = (λ x:T_x \DOT N)@\nonempty{p} V$,
+  and necessarily $⟦(λ x:T_x \DOT N)@\nonempty{p}⟧_p ≈ ⟦V⟧_p ≈ ⊥$.
+  Since the lambda doesn't project to a lambda, $p\not\in\nonempty{p}$.
+  $M' = N[x:=V\mask\nonempty{p}]$.
+  By \textsc{Tlambda}, Lemma "Substitution", and Lemma "Cruft",
+  $⟦N[x:=V\mask\nonempty{p}]⟧_p ≈ ⊥$.
+- \textsc{App1}: $M = V N$
+  and necessarily $⟦V⟧_p ≈ ⟦N⟧_p ≈ ⊥$.
+  By induction, $N \step N'$ and $⟦N'⟧_p ≈ ⊥$.
+- \textsc{App2}: Same as \textsc{App1}.
+- \textsc{Case}: The guard must project to $⊥$, so this follows from induction.
+- \textsc{CaseL} (and \textsc{CaseR} by mirror image):
+  $M = \CASE{\nonempty{p}}{\INL V}{x_l}{M_l}{x_r}{M_r}$
+  and $M' = M_l[x_l := V\mask\nonempty{p}]$.
+  Necessarily, $⟦V⟧_p ≈ ⊥$;
+  by \textsc{Tcase} and \textsc{MTdata}, $N$ types as data,
+  so by Lemma "Existence" $p \not\in \nonempty{p}$.
+  By \textsc{Tcase}, Lemma "Substitution", and Lemma "Cruft",
+  $⟦M'⟧_p = ⟦M_l[x_l := V\mask\nonempty{p}]⟧_p ≈ ⊥$.
+- \textsc{Proj1}: $M = \FST{\nonempty{p}}(\PAIR V_1 V_2)$,
+  and both pieces project to $⊥$.
+  Therefore $p \not \in \nonempty{p}$.
+  $M' = V_1 \mask \nonempty{p}$.
+  Since $Θ;∅ ⊢ V_1 : T'$ (by \textsc{Tpair})
+  and $T' \mask \nonempty{p} = T''$ is defined
+  (by \textsc{Tapp} and the indifference of \textsc{MTdata} to the data's structure),
+  by Lemma "Enclave" $\nonempty{p};∅ ⊢ V_1 \mask \nonempty{p} : T''$.
+  By Lemma "Cruft" this projects to $⊥$.
+- \textsc{Proj2}, \textsc{ProjN}, and \textsc{Com1} are each pretty similar to
+  \textsc{Proj1}.
+- \textsc{ComPair}, \textsc{ComInl}, and \textsc{ComInr} do induction among
+  each other, with \textsc{Com1} as the base case.
+
+### Lemma "Weak Completeness"
+
+> If $Θ;∅ ⊢ M : T$ and $M \step M'$
+> then either $⟦M⟧_p ≈ ⟦M'⟧_p$
+> or $⟦M⟧_p \prcstep{μ}{η} ⟦M'⟧_p$.
+
+**Proof**: If $⟦M⟧_p ≈ ⊥$ then this is follows trivially from Lemma "Bottom",
+so assume it doesn't.
+Note that because of \textsc{Nequiv}, we only have to show that
+$⟦M⟧_p \prcstep{μ}{η} B ≈ ⟦M'⟧_p$.
+We proceed with induction on form of $M \step M'$:
+
+- \textsc{AppAbs}: $M = (λ x:T_x \DOT N)@\nonempty{p} V$,
+  and $M' = N[x:=V\mask\nonempty{p}]$.
+  If the lambda projects to $⊥$, then $⟦M⟧_p \prcstep{∅}{∅} ⊥$ by \textsc{NbotApp},
+  and $⟦M'⟧_p ≈ ⊥$ by the same logic as the respective case of Lemma "Bottom".
+  Otherwise, $p \not\in \nonempty{p}$
+  and $⟦M⟧_p \prcstep{∅}{∅} ⟦N⟧_p[x:=⟦V⟧_p]$ by \textsc{NabsApp}.
+  By Lemma "Masked" and Lemma "Distributive Substitution"
+  $⟦N⟧_p[x:=⟦V⟧_p] = ⟦N⟧_p[x:=⟦V\mask\nonempty{p}⟧_p]
+  = ⟦N[x:=V\mask\nonempty{p}]⟧_p = ⟦M'⟧_p$.
+- \textsc{App1}: $M = V N$.
+  If $⟦N⟧_p ≈ ⊥$ then the rest follows from Lemma "Bottom".
+  Otherwise we use induction on $N$ to satisfy \textsc{Napp1}.
+- \textsc{App2}: Parallels \textsc{App1}.
+- \textsc{Case}: By our assumptions, the guard can't project to $⊥$;
+  we just do induction on the guard to satisfy \textsc{Ncase}.
+- \textsc{CaseL} (\textsc{CaseR} mirrors):
+  $M = \CASE{\nonempty{p}}{\INL V}{x_l}{M_l}{x_r}{M_r}$,
+  and $⟦M⟧_p = \CASE{}{\INL ⟦V⟧_p}{x_l}{B_l}{x_r}{B_r}$.
+  $⟦M⟧_p \prcstep{∅}{∅} B_l[x_l := ⟦V⟧_p]$ by \textsc{NcaseL}.
+  $M' = M_l[x_l := V\mask\nonempty{p}]$.
+  If $p \in \nonempty{p}$
+  then $B_l = ⟦M_l⟧_p$
+  and by Lemma "Masked" Lemma "Distributive Substitution"
+  $B_l[x_l := ⟦V⟧_p] = ⟦M_l⟧_p[x_l := ⟦V⟧_p]
+  = ⟦M_l⟧_p[x_l := ⟦V\mask\nonempty{p}⟧_p] = ⟦M'⟧_p$.
+  Otherwise, $B_l[x_l := ⟦V⟧_p] = ⊥$
+  and by \textsc{Tcase}, Lemma "Substitution", and Lemma "Cruft",
+  $⟦M'⟧_p ≈ ⊥$.
+- TODOOOOO!
+
+
+
+### Lemma "Weak Soundness"
+
+> If $Θ;∅ ⊢ M : T$ and $⟦M⟧ \netstep{}{∅} \mathcal{N}$
+> then there exists $\mathcal{N}' ≈ ⟦M'⟧$ such that
+> $\mathcal{N} \netstep{}{∅}^{+} \mathcal{N}'$ and $M \step M'$.
+
+**Proof**:
+Consider the smallest $\nonempty{p}$ such that
+$⟦M⟧ = \mathcal{N}^{+} \mid Π_{p \in \nonempty{p}} p[⟦M⟧_p]$
+and $\mathcal{N} = \mathcal{N}^{+} \mid Π_{p \in \nonempty{p}} \mathcal{N}_p$.
+The derivation of $⟦M⟧ \netstep{}{∅} \mathcal{N}$ must be based on
+some nested applications of \textsc{Nmatched} and \textsc{Npar},
+such that $Π_{p \in \nonempty{p}} p[⟦M⟧_p]
+\netstep{q}{∅} Π_{p \in \nonempty{p}} \mathcal{N}_p$.
+There are two ways that could be justified:
+
+- \textsc{Npro}: $\nonempty{p} = \{q\}$.
+  $⟦M⟧_q \prcstep{∅}{∅} \mathcal{N}_q$.
+  We must consider every possible way it could do that:
+  - \textsc{NabsApp}:
+    $⟦M⟧_q = (λ x \DOT ⟦N⟧_q) L$
+    and $\mathcal{N}_q = ⟦N⟧_q[x := L]$.
+    Using Lemma "Values" B, $M = (λ x:T_x \DOT N)@\nonempty{r} V$,
+    where  $q \in \nonempty{r}$.
+    $M' = N[x := V \mask \nonempty{r}]$ by Theorem "Progress" and \textsc{AppAbs}.
+    For every $r \in \nonempty{r}$ (including $q$, for whom $⟦V⟧_r = L$),
+    $⟦M⟧_r = (λ x \DOT ⟦N⟧_r) ⟦V⟧_r$
+    and $⟦M'⟧_r = ⟦N[x := V \mask \nonempty{r}]⟧_r
+    = ⟦N⟧_r[x := ⟦V \mask \nonempty{r}⟧_r] = ⟦N⟧_r[x := ⟦V⟧_r]$
+    by Lemma "Distributive Substitution" and Lemma "Masked".
+    For each such $r$, $⟦M⟧_r \prcstep{∅}{∅} ⟦M'⟧_r$ by \textsc{NabsApp}.
+    For every $s \not \in \nonempty{r}$,
+    $⟦M⟧_s = ⊥ ⟦V⟧_s$
+    and $⟦M'⟧_s = ⟦N[x := V \mask \nonempty{r}]⟧_s$
+    which by Lemma "Substitution", Lemma "Cruft",
+    and the original typing derivation of $M$ ... 
+    **STILL A FING PENTAGON!**
+
+
+
 ### Theorem "Completeness"
 
 > If $Θ;∅ ⊢ M : T$ and $M \step M'$,
-> then $⟦M⟧ \netstep{}{∅}^{+} \mathcal{N}$ such that $⟦M'⟧\netstep{}{∅}^{\ast}\mathcal{N}$.
+> then $⟦M⟧ \netstep{}{∅}^{+} \mathcal{N} ≈ ⟦M'⟧$.
 
 **Proof**:
 By case analysis on the semantic step $M \step M'$:
