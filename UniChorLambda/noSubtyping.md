@@ -721,7 +721,7 @@ or $B \prcstep{μ}{η} B'$ for short.
           {}
           {\LOOKUP{i}{} (L_1, \dots, L_i, \dots, L_n) \prcstep{∅}{∅} L_i}
           \vdbl
-\myference{Nsend1A}
+\myference{Nsend1}
           {}
           {\SEND{\nonempty{p}} () \prcstep{\set{(p, ()) \mid p \in \nonempty{p}}}{∅} ⊥}
           \quad
@@ -748,7 +748,7 @@ or $B \prcstep{μ}{η} B'$ for short.
           \vdbl
 \myference{Nrecv}
           {}
-          {\RECV{p} \prcstep{∅}{\set{(p, L)}} L}
+          {\RECV{p} L_0 \prcstep{∅}{\set{(p, L)}} L}
           \quad
 \myference{Nequiv}
           {B \prcstep{μ}{η} B' \quad B' ≈ B''}
@@ -1073,7 +1073,113 @@ We proceed with induction on form of $M \step M'$:
   Otherwise, $B_l[x_l := ⟦V⟧_p] = ⊥$
   and by \textsc{Tcase}, Lemma "Substitution", and Lemma "Cruft",
   $⟦M'⟧_p ≈ ⊥$.
-- TODOOOOO!
+- \textsc{Proj1}: $M = \FST{\nonempty{p}} (\PAIR V_1 V_2)$
+  and $M' = V_1 \mask \nonempty{p}$.
+  If $p \not\in \nonempty{p}$, then $⟦M⟧_p \prcstep{∅}{∅} ⊥$
+  by \textsc{NbotApp}
+  and by Lemma "Enclave" and Lemma "Cruft",
+  $⟦M'⟧_p ≈ ⊥$.
+  Otherwise, $⟦M⟧_p = \FST{} (\PAIR ⟦V_1⟧_p ⟦V_2⟧_p)$,
+  which steps by \textsc{Nproj1} to $⟦V_1⟧_p$,
+  which equals $⟦M'⟧_p$ by Lemma "Masked.
+- \textsc{Proj2}, \textsc{ProjN}: Same as \textsc{Proj1}.
+- \textsc{Com1}: $M = \COMM{s}{\nonempty{r}} ()@\nonempty{p}$
+  and $M' = ()@\nonempty{r}$.
+  - $s = p$ and $p \in \nonempty{r}$:
+    By \textsc{MVunit}, $p \in \nonempty{p}$,
+    so $⟦M⟧_p = \SEND{\nonempty{r} ∖ \set{p}}^{\ast} ()$,
+    which steps by \textsc{NsendSelf} (using \textsc{Nsend1}) to $()$.
+    $⟦M'⟧_p = ()$.
+  - $s = p$ and $p \not\in \nonempty{r}$:
+    By \textsc{MVunit}, $p \in \nonempty{p}$,
+    so $⟦M⟧_p = \SEND{\nonempty{r}} ()$,
+    which steps by \textsc{Nsend1} to $⊥$.
+    $⟦M'⟧_p = ⊥$.
+  - $s \neq p$ and $p \in \nonempty{r}$:
+    $⟦M⟧_p = \RECV{s} ⟦()@\nonempty{p}⟧_p$,
+    which can step by \textsc{Nrecv} to $⟦M'⟧_p$.
+  - Otherwise, $⟦M⟧_p = ⊥ ⟦()@\nonempty{p}⟧_p$,
+    which can step by \textsc{NbotApp} to $⊥ = ⟦M'⟧_p$.
+- \textsc{ComPair}, \textsc{ComInl}, and \textsc{ComInr}:
+  Each uses the same structure of proof as \text{Com1},
+  using induction between the cases
+  to support the respective process-semantics steps.
+
+
+### Theorem "Completeness"
+
+> If $Θ;∅ ⊢ M : T$ and $M \step M'$,
+> then $⟦M⟧ \netstep{}{∅}^{+} \mathcal{N} ≈ ⟦M'⟧$.
+
+**Proof**:
+By case analysis on the semantic step $M \step M'$:
+
+- \textsc{AppAbs},
+  \textsc{App1},
+  \textsc{App2},
+  \textsc{Case},
+  \textsc{CaseL},
+  \textsc{CaseR},
+  \textsc{Proj1},
+  \textsc{Proj2},
+  and \textsc{ProjN}:
+  Necessarily, the set of parties $\nonempty{p}$ for whom $⟦M⟧ ≉ ⊥$ is not empty.
+  (Do I need that as a lemma?)
+  For every $p \in \nonempty{p}$,
+  by Lemma "Weak Completeness" $⟦M⟧_p \prcstep{∅}{∅} ⟦M'⟧_p$
+  (checking the cases to see that the annotations are really empty!).
+  By \textsc{Npro} and \textsc{Nmatched}, each of those is also a network step,
+  which by Lemma "Parallelism" can be composed in any order to get
+  $⟦M⟧ \netstep{}{∅}^{+} \mathcal{N}$.
+  By Lemma "Weak Completeness", for every $p \in \nonempty{p}$,
+  $\mathcal{N}_p = ⟦M'⟧_p$,
+  and for every $q \not\in \nonempty{p}$,
+  $\mathcal{N}_q = ⟦M⟧_q ≈ ⟦M'⟧_q$,
+  Q.E.D.
+- \textsc{Com1},
+  \textsc{ComPair},
+  \textsc{ComInl},
+  and \textsc{ComInr}:
+  $M = \COMM{s}{\nonempty{r}} V$.
+  By the recursive structure of \textsc{Com1}, \textsc{ComPair}, \textsc{ComInl},
+  and \textsc{ComInr}, $M'$ is some structure of
+  $\set{\PAIR, \INL{}, \INR{}, ()@\nonempty{r}}$,
+  and $⟦M'⟧_{r\in\nonempty{r}} = ⟦V⟧_s$.
+  Let $\nonempty{p} = \nonempty{r} ∪ \set{s}$;
+  for every $q \not\in \nonempty{p}$, either $⟦M⟧_q ≈ ⊥$ or $⟦M⟧_q ≈ ⊥ L$
+  which can step to $⊥ ≈ ⟦M'⟧_q$ by \textsc{NbotApp} and Lemma "Weak Completeness"
+  (or "Weak Soundness"?).
+  Compose all of those to say $⟦M⟧ \netstep{}{∅}^{\ast} \mathcal{N}^q$;
+  it remains to show that $\mathcal{N}^q \netstep{}{∅}^{+} \mathcal{N} ≈ ⟦M'⟧$.
+  Consider two cases:
+  - $s \not\in \nonempty{r}$:  
+    By Lemma "Weak Completeness"
+    $⟦M⟧_s = \SEND{\nonempty{r}} ⟦V⟧_s
+    \prcstep{\set{(r, ⟦V⟧_s) \mid r \in \nonempty{r}}}{∅} ⊥$.
+    By the previously mentioned structure of $M'$, $⟦M'⟧_s ≈ ⊥$.  
+    For every $r \in \nonempty{r}$,
+    by Lemma "Weak Completeness"
+    $⟦M⟧_r = \RECV{s} ⟦V⟧_r
+    \prcstep{∅}{\set{(s,⟦V⟧_s)}} ⟦V⟧_s = ⟦M'⟧_{r}$.  
+    By \textsc{Npro},
+    $s[⟦M⟧_s] \netstep{s}{\set{(r, ⟦V⟧_s) \mid r \in \nonempty{r}}} s[⊥≈⟦M'⟧_s]$.
+    This composes in parallel with each of the $r_{\in\nonempty{r}}[⟦M⟧_r]$
+    by \textsc{Ncom} in any order until the unmactched send is empty
+    and can be elided by \textsc{Nmatched}.
+    This composes by Lemma "Parallelism" with the step to $\mathcal{N}^q$, Q.E.D.
+  - $s \in \nonempty{r}$: Let $\nonempty{r_0} = \nonempty{r} ∖ \set{s}$.  
+    By Lemma "Weak Completeness"
+    $⟦M⟧_s = \SEND{\nonempty{r_0}}^{\ast} ⟦V⟧_s
+    \prcstep{\set{(r, ⟦V⟧_s) \mid r \in \nonempty{r_0}}}{∅} ⟦V⟧_s
+    = ⟦M'⟧_{s\in \nonempty{r}}$.  
+    For every $r \in \nonempty{r_0}$,
+    by Lemma "Weak Completeness"
+    $⟦M⟧_r = \RECV{s} ⟦V⟧_r
+    \prcstep{∅}{\set{(s,⟦V⟧_s)}} ⟦V⟧_s = ⟦M'⟧_{r}$.  
+    We proceed as in the previous case.
+
+\pagebreak
+## Scratch:
 
 
 
@@ -1117,21 +1223,5 @@ There are two ways that could be justified:
 
 
 
-### Theorem "Completeness"
-
-> If $Θ;∅ ⊢ M : T$ and $M \step M'$,
-> then $⟦M⟧ \netstep{}{∅}^{+} \mathcal{N} ≈ ⟦M'⟧$.
-
-**Proof**:
-By case analysis on the semantic step $M \step M'$:
-
-- \textsc{AppAbs}: $M = ((λ x:T \DOT N)@\nonempty{p}) V$, $V' = V \mask \nonempty{p}$,
-  and $M' = N[x:=V']$.  
-  $⟦M⟧ = \mathcal{N}_1 \mid \mathcal{N}_2$
-  where $\mathcal{N}_1 = Π_{p \in \nonempty{p}} p[(λ x \DOT ⟦N⟧_p) ⟦V⟧_p]$
-  and $\mathcal{N}_2 =  Π_{p \not\in \nonempty{p}} p[⊥ ⟦V⟧_p]$.  
-  By Lemma "Values", each party in $\mathcal{N}_2$ can step by \textsc{NbotApp} to $⊥$.
-  By Lemma "Values", each party $p$ in $\mathcal{N}_1$ can step by \textsc{NabsAppp}
-  to $⟦N⟧_p[x := ⟦V⟧_p]$.
 
 
