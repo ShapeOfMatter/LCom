@@ -764,6 +764,21 @@ or $B \prcstep{μ}{η} B'$ for short.
           \vdbl
 \end{gather*}
 
+Multi-step notation is, as usual, just a convenience for proofs,
+but it's worth clarifying exactly how it works.
+Any $M$ zero-steps to itself with empty-set annotations.
+An empty-set-annotated step can compose with any multi-step
+without changing the annotation,
+but steps with populated send and receive sets can _only_ compose
+with empty-set-annotated multi-sets.
+In other words, $B \prcstep{μ\neq ∅}{η\neq ∅}^{\ast} B'$
+indicates a sequences of steps exactly one of which looks like
+$B_1 \prcstep{μ}{η} B_2$
+(and the rest look like $B_3 \prcstep{∅}{∅} B_4$).
+That's not to say that multi-steps outside this representation are impossible
+or meaningless,
+I just don't think we'll need notation with which to talk about them.
+
 
 \pagebreak
 ## Networks
@@ -1036,30 +1051,29 @@ By induction on the typing of $M$:
 ### Lemma "Weak Completeness"
 
 > If $Θ;∅ ⊢ M : T$ and $M \step M'$
-> then either $⟦M⟧_p ≈ ⟦M'⟧_p$
-> or $⟦M⟧_p \prcstep{μ}{η} ⟦M'⟧_p$.
+> then $⟦M⟧_p \prcstep{μ}{η}^{\ast} B ≈ ⟦M'⟧_p$.
 
 **Proof**: If $⟦M⟧_p ≈ ⊥$ then this is follows trivially from Lemma "Bottom",
 so assume it doesn't.
-Note that because of \textsc{Nequiv}, we only have to show that
-$⟦M⟧_p \prcstep{μ}{η} B ≈ ⟦M'⟧_p$.
 We proceed with induction on form of $M \step M'$:
 
 - \textsc{AppAbs}: $M = (λ x:T_x \DOT N)@\nonempty{p} V$,
   and $M' = N[x:=V\mask\nonempty{p}]$.
   If the lambda projects to $⊥$, then $⟦M⟧_p \prcstep{∅}{∅} ⊥$ by \textsc{NbotApp},
   and $⟦M'⟧_p ≈ ⊥$ by the same logic as the respective case of Lemma "Bottom".
-  Otherwise, $p \not\in \nonempty{p}$
+  Otherwise, $p \in \nonempty{p}$
   and $⟦M⟧_p \prcstep{∅}{∅} ⟦N⟧_p[x:=⟦V⟧_p]$ by \textsc{NabsApp}.
   By Lemma "Masked" and Lemma "Distributive Substitution"
   $⟦N⟧_p[x:=⟦V⟧_p] = ⟦N⟧_p[x:=⟦V\mask\nonempty{p}⟧_p]
   = ⟦N[x:=V\mask\nonempty{p}]⟧_p = ⟦M'⟧_p$.
-- \textsc{App1}: $M = V N$.
+- \textsc{App1}: $M = V N \step V N' = M'$.
   If $⟦N⟧_p ≈ ⊥$ then the rest follows from Lemma "Bottom".
-  Otherwise we use induction on $N$ to satisfy \textsc{Napp1}.
-- \textsc{App2}: Parallels \textsc{App1}.
+  Otherwise we use induction on $N$ to satisfy some sequence of \textsc{Napp1} steps.
+  If $⟦N'⟧_p ≈ ⊥$ then a final \textsc{NbotApp} step may be needed.
+- \textsc{App2}: Similar to \textsc{App1}.
 - \textsc{Case}: By our assumptions, the guard can't project to $⊥$;
   we just do induction on the guard to satisfy \textsc{Ncase}.
+  As in \textsc{App1}, a final use of \textsc{NappBot} may be needed.
 - \textsc{CaseL} (\textsc{CaseR} mirrors):
   $M = \CASE{\nonempty{p}}{\INL V}{x_l}{M_l}{x_r}{M_r}$,
   and $⟦M⟧_p = \CASE{}{\INL ⟦V⟧_p}{x_l}{B_l}{x_r}{B_r}$.
@@ -1081,7 +1095,7 @@ We proceed with induction on form of $M \step M'$:
   $⟦M'⟧_p ≈ ⊥$.
   Otherwise, $⟦M⟧_p = \FST{} (\PAIR ⟦V_1⟧_p ⟦V_2⟧_p)$,
   which steps by \textsc{Nproj1} to $⟦V_1⟧_p$,
-  which equals $⟦M'⟧_p$ by Lemma "Masked.
+  which equals $⟦M'⟧_p$ by Lemma "Masked".
 - \textsc{Proj2}, \textsc{ProjN}: Same as \textsc{Proj1}.
 - \textsc{Com1}: $M = \COMM{s}{\nonempty{r}} ()@\nonempty{p}$
   and $M' = ()@\nonempty{r}$.
@@ -1115,9 +1129,6 @@ We proceed with induction on form of $M \step M'$:
 By case analysis on the semantic step $M \step M'$:
 
 - \textsc{AppAbs},
-  \textsc{App1},
-  \textsc{App2},
-  \textsc{Case},
   \textsc{CaseL},
   \textsc{CaseR},
   \textsc{Proj1},
@@ -1126,12 +1137,13 @@ By case analysis on the semantic step $M \step M'$:
   Necessarily, the set of parties $\nonempty{p}$ for whom $⟦M⟧ ≉ ⊥$ is not empty.
   (Do I need that as a lemma?)
   For every $p \in \nonempty{p}$,
-  by Lemma "Weak Completeness" $⟦M⟧_p \prcstep{∅}{∅} ⟦M'⟧_p$
+  by Lemma "Weak Completeness" $⟦M⟧_p \prcstep{∅}{∅}^{\ast} ⟦M'⟧_p$
   (checking the cases to see that the annotations are really empty!).
-  By \textsc{Npro} and \textsc{Nmatched}, each of those is also a network step,
+  By \textsc{Npro} and \textsc{Nmatched}, each of those is also a
+  (sequence of) network step(s),
   which by Lemma "Parallelism" can be composed in any order to get
   $⟦M⟧ \netstep{}{∅}^{+} \mathcal{N}$.
-  By Lemma "Weak Completeness", for every $p \in \nonempty{p}$,
+  For every $p \in \nonempty{p}$,
   $\mathcal{N}_p = ⟦M'⟧_p$,
   and for every $q \not\in \nonempty{p}$,
   $\mathcal{N}_q = ⟦M⟧_q ≈ ⟦M'⟧_q$,
@@ -1145,24 +1157,27 @@ By case analysis on the semantic step $M \step M'$:
   and \textsc{ComInr}, $M'$ is some structure of
   $\set{\PAIR, \INL{}, \INR{}, ()@\nonempty{r}}$,
   and $⟦M'⟧_{r\in\nonempty{r}} = ⟦V⟧_s$.
-  Let $\nonempty{p} = \nonempty{r} ∪ \set{s}$;
-  for every $q \not\in \nonempty{p}$, either $⟦M⟧_q ≈ ⊥$ or $⟦M⟧_q ≈ ⊥ L$
-  which can step to $⊥ ≈ ⟦M'⟧_q$ by \textsc{NbotApp} and Lemma "Weak Completeness"
-  (or "Weak Soundness"?).
+  For every $q \not\in \nonempty{r} ∪ \set{s}$, either $⟦M⟧_q ≈ ⊥$ or $⟦M⟧_q ≈ ⊥ L$
+  which can step to $⊥ ≈ ⟦M'⟧_q$ by \textsc{NbotApp} and Lemma "Weak Completeness".
   Compose all of those to say $⟦M⟧ \netstep{}{∅}^{\ast} \mathcal{N}^q$;
   it remains to show that $\mathcal{N}^q \netstep{}{∅}^{+} \mathcal{N} ≈ ⟦M'⟧$.
   Consider two cases:
   - $s \not\in \nonempty{r}$:  
     By Lemma "Weak Completeness"
     $⟦M⟧_s = \SEND{\nonempty{r}} ⟦V⟧_s
-    \prcstep{\set{(r, ⟦V⟧_s) \mid r \in \nonempty{r}}}{∅} ⊥$.
+    \prcstep{\set{(r, ⟦V⟧_s) \mid r \in \nonempty{r}}}{∅}^{\ast} ⊥$.
     By the previously mentioned structure of $M'$, $⟦M'⟧_s ≈ ⊥$.  
     For every $r \in \nonempty{r}$,
     by Lemma "Weak Completeness"
     $⟦M⟧_r = \RECV{s} ⟦V⟧_r
-    \prcstep{∅}{\set{(s,⟦V⟧_s)}} ⟦V⟧_s = ⟦M'⟧_{r}$.  
+    \prcstep{∅}{\set{(s,⟦V⟧_s)}}^{\ast} ⟦V⟧_s = ⟦M'⟧_{r}$.  
     By \textsc{Npro},
     $s[⟦M⟧_s] \netstep{s}{\set{(r, ⟦V⟧_s) \mid r \in \nonempty{r}}} s[⊥≈⟦M'⟧_s]$.
+    (For both $s$ and the parties in $\nonempty{r}$,
+    they may need to take multiple process-steps,
+    but only one step each will have non-empty annotations.
+    I elide the empty-set-annotaed steps here for brevity;
+    they can be made explicity by introducing intermediate forms.)
     This composes in parallel with each of the $r_{\in\nonempty{r}}[⟦M⟧_r]$
     by \textsc{Ncom} in any order until the unmactched send is empty
     and can be elided by \textsc{Nmatched}.
@@ -1177,17 +1192,177 @@ By case analysis on the semantic step $M \step M'$:
     $⟦M⟧_r = \RECV{s} ⟦V⟧_r
     \prcstep{∅}{\set{(s,⟦V⟧_s)}} ⟦V⟧_s = ⟦M'⟧_{r}$.  
     We proceed as in the previous case.
+- \textsc{App1} (\textsc{App2} and \textsc{Case} are similar):
+  $M = V N$.
+  By induction, $⟦N⟧ \netstep{}{∅}^{+} \mathcal{N} ≈ ⟦N'⟧$.
+  Every step in that process which in which a single party advances locally
+  can lift to an $M$ step by \textsc{Napp1}.
+  For a \textsc{Ncom} step, each of the participating parties will
+  also lift their $N$ step to a $M$ step by \textsc{Napp1};
+  since this doesn't change the send & receive annotations,
+  the cancellation will still work.
+  As in the \textsc{AppAbs} case,
+  parties for whom the projection is $⊥$ may have their own process steps
+  which can be composed by Lemma "Parallelism".
+
+
 
 \pagebreak
-## Scratch:
-
-
 
 ### Lemma "Weak Soundness"
 
-> If $Θ;∅ ⊢ M : T$ and $⟦M⟧ \netstep{}{∅} \mathcal{N}$
-> then there exists $\mathcal{N}' ≈ ⟦M'⟧$ such that
-> $\mathcal{N} \netstep{}{∅}^{+} \mathcal{N}'$ and $M \step M'$.
+> If $Θ;∅ ⊢ M : T$ and $⟦M⟧ = \mathcal{N}_0 \mid \mathcal{N}_M
+> \netstep{}{∅} \mathcal{N}_1 \mid \mathcal{N}_M
+> \netstep{}{∅} \dots \netstep{}{∅} \mathcal{N}_n \mid \mathcal{N}_M$
+> where for every $p[\_] \in \mathcal{N}_0$ there is exactly one index $i$
+> s.t. $\mathcal{N}_i(p) \neq \mathcal{N}_{i+1}(p)$,
+> then $M \step M'$
+> and $\mathcal{N}_M \netstep{}{∅}^{\ast} \mathcal{N}_M'$
+> such that $\mathcal{N}_n \mid \mathcal{N}_M' ≈ ⟦M'⟧$.  
+> (Corollary:
+> $\mathcal{N}_n \mid \mathcal{N}_M \netstep{}{∅}^{\ast}
+>  \mathcal{N}_n \mid \mathcal{N}_M'$)
+
+**Proof**: **TODO!**
+
+
+### Theorem "Soundness"
+
+> If $Θ;∅ ⊢ M : T$ and $⟦M⟧ \netstep{}{∅}^{\ast} \mathcal{N}$,
+> then there exists $M''$ and $\mathcal{N}''$ such that
+> $M \step^{\ast} M''$, $\mathcal{N} \netstep{}{∅}^{\ast} \mathcal{N}''$,
+> and $⟦M''⟧ ≈ \mathcal{N}''$.
+
+**Proof**:
+Ignore the trivial case where
+$⟦M⟧ \netstep{}{∅}^{\ast} \mathcal{N}$ denotes zero steps.
+Decompose the multi-step into
+$⟦M⟧ = \mathcal{N}_0 \mid \mathcal{N}_M
+\netstep{}{∅} \dots \netstep{}{∅} \mathcal{N}_n \mid \mathcal{N}_M
+\netstep{}{∅}^{\ast} \mathcal{N}$
+such that for every $p[\_] \in \mathcal{N}_0$ there is exactly one index $i$
+s.t. $\mathcal{N}_i(p) \neq \mathcal{N}_{i+1}(p)$,
+and $n$ is as large as possible.
+(There are other ways of breaking this down, but let's require, which we can,
+that $\mathcal{N}_0$ is not empty, but $\mathcal{N}_M$ might be.)
+
+By Lemma "Weak Soundness", there exists $M'$ and $\mathcal{N}_M'$
+such that $M \step M'$
+and $\mathcal{N}_n \mid \mathcal{N}_M \netstep{}{∅}^{\ast}
+\mathcal{N}_n \mid \mathcal{N}_M' ≈ ⟦M'⟧$.
+
+If $⟦M⟧ \netstep{}{∅}^{\ast} \mathcal{N}$ uses only \textsc{Nequiv},
+then... nothing, I don't think i need this.
+
+Proceed by induction on the structure of $M$:
+
+- $M = N_1 N_2$: Decompose the projection as
+  $⟦M⟧ = \mathcal{N}^M_1 \mid \mathcal{N}^M_2$
+  where for every $p[B_p] \in \mathcal{N}^M_1$, $B_p = ⟦N_1⟧_p ⟦N_2⟧_p$
+  and for every $q[B_q] \in \mathcal{N}^M_2$, $B_q = ⊥$.  
+  Consider the cases if $N_2$ is or is not a value:
+  - $N_2 = V$: There are five cases
+
+
+
+\pagebreak
+## Scratch
+### Lemma "Weak Soundness"
+
+> If $Θ;∅ ⊢ M : T$ and $p \in Θ$ and $⟦M⟧_p \prcstep{μ}{η} B$
+> then there exists $M'$ such that $B \prcstep{∅}{∅}^{\ast} ⟦M'⟧_p$
+> and $M \step^{\ast} M'$.
+
+**Proof**:
+By induction on the step $⟦M⟧_p \prcstep{μ}{η} B$.
+Note that by Lemma "Values", the observation that process values cannot step,
+and Theorem "Progress", $M$ necessarily can step to _something_.
+
+- \textsc{NabsApp}: $M = (λ x:T_x \DOT N)@\nonempty{p} V$
+  and $⟦M⟧_p = (λ x \DOT ⟦N⟧_p) ⟦V⟧_p \prcstep{∅}{∅} ⟦N⟧_p[x:=⟦V⟧_p] = B$.  
+  Necessarily, $⟦V⟧_p$ is a value
+  (which is how we know $V$ is a value instead of some arbitrary expression,
+  by Lemma "Values")
+  and $p\in\nonempty{p}$.
+  Therefore, $M \step N[x:=V\mask\nonempty{p}]$.  
+  By Lemma "Distributive Substitution"
+  $⟦N[x:=V\mask\nonempty{p}]⟧_p = ⟦N⟧_p[x:=⟦V\mask\nonempty{p}⟧_p]$
+  and by Lemma "Masked" $⟦V\mask\nonempty{p}⟧_p = ⟦V⟧_p$.
+  Q.E.D.
+- \textsc{Napp1}: $M = V N$
+  and $⟦M⟧_p = ⟦V⟧_p ⟦N⟧_p$ where $⟦N⟧_p \prcstep{μ}{η} B'$
+  so that $B = ⟦V⟧_p B'$.  
+  By induction on $⟦N⟧_p$ and $B'$, there exists $N'$ such that
+  $B' \prcstep{∅}{∅}^{\ast} ⟦N'⟧_p$
+  and $N \step^{\ast} N'$.
+  Therefore, $M \step^{\ast} V N'$ by a series of \textsc{App1}.
+  $V N'$ is our target $M'$.  
+  If $⟦V N'⟧_p ≉ ⊥$ then $⟦M'⟧_p = ⟦V⟧_p ⟦N'⟧_p$,
+  which $B$ can empty step to by further applications of \textsc{Napp1}.  
+  Otherwise, $⟦M'⟧_p = ⊥ ≈ ⟦V⟧_p ≈ ⟦N'⟧_p$.
+  $B'$ must first step to $⊥ ⊥$ by \textsc{Napp1} as in the other case,
+  and then finish with \textsc{NbotApp}.
+- \textsc{Napp2}: $M = N_1 N_2$
+  and $⟦M⟧_p = ⟦N_1⟧_p ⟦N_2⟧_p$ where $⟦N_1⟧_p \prcstep{μ}{η} B'$
+  so that $B = B' ⟦N_2⟧_p$.  
+  By induction on $⟦N_1⟧_p$ and $B'$, there exists $N'$ s.t.
+  $B' \prcstep{∅}{∅}^{\ast} ⟦N'⟧_p$
+  and $N_1 \step^{\ast} N'$.
+  Therefore $M \step^{\ast} N' N_2$ by a series of \textsc{App2}.
+  $N' N_2$ is our target $M'$.  
+  If $⟦N' N_2⟧_p ≉ ⊥$ then $⟦M'⟧_p = ⟦N'⟧_p ⟦N_2⟧_p$,
+  which $B$ can empty step to by further applications of \textsc{Napp2}.  
+  Otherwise, $⟦M'⟧_p = ⊥ ≈ ⟦N'⟧_p ≈ ⟦N_2⟧_p$.
+  $B'$ must first step to $⊥ ⊥$ by \textsc{Napp2} as in the other case,
+  and then finish with \textsc{NbotApp}.
+- \textsc{Ncase}: $M = \CASE{\nonempty{p}}{N}{x_l}{M_l}{x_r}{M_r}$
+  and $⟦M⟧_p = \CASE{}{⟦N⟧_p}{x_l}{B_l}{x_r}{B_r}$ where $⟦N⟧_p \prcstep{μ}{η} B'$
+  so that $B = \CASE{}{B'}{x_l}{B_l}{x_r}{B_r}$.  
+  By induction on $⟦N⟧_p$ and $B'$, there exists $N'$ such that
+  $B' \prcstep{∅}{∅}^{\ast} ⟦N'⟧_p$
+  and $N \step^{\ast} N'$.
+  Therefore, $M \step^{\ast} \CASE{\nonempty{p}}{N'}{x_l}{M_l}{x_r}{M_r}$
+  by a series of \textsc{Case}.
+  $\CASE{\nonempty{p}}{N'}{x_l}{M_l}{x_r}{M_r}$ is our target $M'$.  
+  If $⟦N'⟧_p = ⊥ = ⟦M'⟧_p$ then $B$ can empty-step to it
+  by \textsc{Ncase} and \textsc{NbotCase},
+  otherwise \textsc{Ncase} alone is enough.
+- \textsc{NcaseL}:
+  $M = \CASE{\nonempty{p}}{V}{x_l}{M_l}{x_r}{M_r}$,
+  $⟦V⟧_p \neq ⊥$,  
+  and $⟦M⟧_p = \CASE{}{\INL ⟦V⟧_p}{x_l}{B_l}{x_r}{B_r}
+  \prcstep{∅}{∅} B_l[x := ⟦V⟧_p] = B$.  
+  $M \step M_l[x_l := V \mask \nonempty{p}] = M'$ by \textsc{CaseL}.
+  If $p \in \nonempty{p}$, then $B = ⟦M_l⟧_p[x := ⟦V⟧_p]$;
+  the proof completes by Lemma "Masked" and Lemma "Distributive Substitution".
+  Otherwise, $B_l = ⊥ = B$;
+  by \textsc{Tcase}, Lemma "Substitution", and Lemma "Cruft",
+  $⟦M'⟧_p ≈ ⊥$.
+  **TODO:** We haven't actually shown that $B$ can step to $⟦M'⟧_p$,
+  just that they're equivalent, which isn't exactly what the lemma says!
+  I think the correct solution is probably to redefine EEP
+  in a way that strengthens Lemma "Cruft".
+  Maybe we can even get rid of the equivalence, IDK.
+- \textsc{NcaseR}: Same as \textsc{NcaseL}.
+- \textsc{Nproj1}, \textsc{Nproj2}, and \textsc{NprojN}:
+  Basically the same as \textsc{NabsApp}.
+- \textsc{Nsend1}: $M = \COMM{p}{\nonempty{r}} ()@\nonempty{p}$,
+  $p \in \nonempty{p}$, $p \not\in \nonempty{r}$,
+  and $⟦M⟧ = \SEND{\nonempty{p}} () \prcstep{\set{(p,()) \mid p\in\nonempty{p}}}{∅}
+  ⊥ = B$.  
+  $M \step ()@\nonempty{r}$ by \textsc{Com1}, which projects to $⊥$.
+- \textsc{NsendPair}, \textsc{NsendInL}, \textsc{NsendInR}:
+  By induction among each other with \textsc{Nsend1} as the base case.
+  **Except! TODO:** this only works up to equivalence!
+- \textsc{NsendSelf}: This recurses into the other $\SEND{}$ cases,
+  with the difference that $p\in\nonempty{r}$,
+  so the data value is unchanged by the step instead of becoming $⊥$.
+  **TODO:** make this more explicit?
+- \textsc{Nrecv}: **Straight up breaks the lemma!**
+  because $B$ has no relation to $M$.
+- \textsc{Nequiv}: 
+- \textsc{NbotApp}: 
+- \textsc{NbotCase}: 
 
 **Proof**:
 Consider the smallest $\nonempty{p}$ such that
